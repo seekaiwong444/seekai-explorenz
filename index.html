@@ -1,0 +1,3475 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>seekai.exploreNZ | 紐西蘭南島在地華語私人導遊與客製化包車</title>
+  <meta name="description" content="跟著在地華語導遊 Seekai，走進明信片背後的真實紐西蘭。提供南島客製化包車、私房路線規劃與毛利文化深度導覽。" />
+
+  <!-- Google Fonts: 精選適合繁體中文長文與高級旅遊誌質感的字體組合 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Noto+Sans+TC:wght@300;400;500;600;700&family=Noto+Serif+TC:wght@500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Leaflet.js CDN（免費開源地圖，搭配 OpenStreetMap / CartoDB 免 API Key） -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            snow: {
+              DEFAULT: '#F9FAF8',
+              pure: '#FFFFFF',
+            },
+            forest: {
+              950: '#10241D',
+              900: '#1A3A2F',
+              800: '#244E3F',
+              700: '#2F6250',
+              100: '#E5EFEA',
+            },
+            glacier: {
+              700: '#2E5D72',
+              600: '#4B8198',
+              400: '#7AAEC4',
+              100: '#E6F1F5',
+            },
+            sand: {
+              50: '#FAF7F2',
+              100: '#F3EEE6',
+              200: '#E6DDD0',
+              300: '#D2C3AC',
+              500: '#A69276',
+            },
+            ink: {
+              DEFAULT: '#242E2A',
+              muted: '#576560',
+            }
+          },
+          fontFamily: {
+            sans: ['"Noto Sans TC"', 'system-ui', '-apple-system', 'sans-serif'],
+            serif: ['"Noto Serif TC"', 'Georgia', 'serif'],
+            display: ['"Cormorant Garamond"', '"Noto Serif TC"', 'serif'],
+          },
+          boxShadow: {
+            'soft': '0 10px 35px -10px rgba(26, 58, 47, 0.08)',
+            'card-hover': '0 22px 45px -15px rgba(26, 58, 47, 0.16)',
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* 中文排版與閱讀舒適度微調 */
+    body {
+      background-color: #F9FAF8;
+      color: #242E2A;
+      font-feature-settings: "palt";
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    p {
+      line-height: 1.9;
+      letter-spacing: 0.025em;
+    }
+
+    h1, h2, h3 {
+      letter-spacing: 0.04em;
+    }
+
+    /* 首頁主視覺慢速微縮放動畫（營造電影感呼吸節奏） */
+    @keyframes subtleZoom {
+      0% { transform: scale(1.0); }
+      100% { transform: scale(1.08); }
+    }
+    .hero-bg-zoom {
+      animation: subtleZoom 24s ease-in-out infinite alternate;
+    }
+
+    /* 滾動進場柔和浮現動畫 */
+    .reveal {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+                  transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* 導覽列滾動狀態切換 */
+    .navbar-transparent {
+      background-color: transparent;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .navbar-scrolled {
+      background-color: rgba(249, 250, 248, 0.92);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid rgba(230, 221, 208, 0.8);
+      box-shadow: 0 4px 24px -8px rgba(26, 58, 47, 0.08);
+    }
+
+    /* 彈窗進場動畫 */
+    .modal-backdrop {
+      transition: opacity 0.25s ease;
+    }
+    .modal-panel {
+      transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
+    }
+
+    /* 自訂捲軸質感 */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #F3EEE6;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #B8C4BF;
+      border-radius: 999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #4B8198;
+    }
+
+    /* Leaflet 互動地圖客製自然品牌樣式 */
+    #nz-route-map {
+      font-family: "Noto Sans TC", system-ui, sans-serif;
+      z-index: 10;
+      background-color: #E6F1F5;
+    }
+
+    .nz-pin-selected {
+      width: 30px;
+      height: 30px;
+      border-radius: 9999px;
+      background: linear-gradient(135deg, #1A3A2F 0%, #2E5D72 100%);
+      color: #FFFFFF;
+      border: 2.5px solid #FFFFFF;
+      box-shadow: 0 6px 14px rgba(16, 36, 29, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .nz-pin-selected:hover {
+      transform: scale(1.14);
+      box-shadow: 0 8px 18px rgba(16, 36, 29, 0.45);
+    }
+
+    .nz-pin-unselected {
+      width: 18px;
+      height: 18px;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.94);
+      border: 2.5px solid #7AAEC4;
+      box-shadow: 0 3px 8px rgba(26, 58, 47, 0.22);
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .nz-pin-unselected:hover {
+      transform: scale(1.22);
+      border-color: #1A3A2F;
+    }
+
+    .leaflet-popup-content-wrapper {
+      border-radius: 16px !important;
+      padding: 0 !important;
+      box-shadow: 0 16px 35px -8px rgba(16, 36, 29, 0.24) !important;
+      border: 1px solid #E6DDD0;
+      overflow: hidden;
+    }
+    .leaflet-popup-content {
+      margin: 0 !important;
+      min-width: 220px;
+    }
+    .leaflet-popup-tip {
+      background: #FFFFFF !important;
+    }
+    .leaflet-container a.leaflet-popup-close-button {
+      color: #576560 !important;
+      top: 8px !important;
+      right: 8px !important;
+      font-size: 18px !important;
+    }
+  </style>
+</head>
+<body id="top" class="font-sans antialiased selection:bg-glacier-100 selection:text-forest-900">
+
+  <!-- =========================================================
+       1. 頂部導覽列（Navbar）
+  ========================================================== -->
+  <header id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 navbar-transparent">
+    <div class="max-w-7xl mx-auto px-5 sm:px-8">
+      <div class="flex items-center justify-between h-20">
+        <!-- 品牌 Logo -->
+        <a href="#top" class="flex items-center gap-2.5 group focus:outline-none">
+          <span id="nav-logo-icon" class="w-9 h-9 rounded-full border border-white/40 bg-white/10 flex items-center justify-center transition-colors duration-300 group-hover:bg-glacier-600 group-hover:border-glacier-600">
+            <!-- 極簡雪山圖示 -->
+            <svg class="w-5 h-5 text-white transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m3 18 6-10 4 6 3-4 5 8H3Z"/>
+              <path d="m9 8 2.2 2.2L13 9"/>
+            </svg>
+          </span>
+          <div class="flex flex-col">
+            <span id="nav-brand-text" class="font-display text-xl sm:text-2xl font-semibold tracking-wide text-white transition-colors duration-300 leading-none">
+              seekai<span class="text-glacier-400">.</span>exploreNZ
+            </span>
+            <span id="nav-brand-sub" class="text-[10px] tracking-[0.22em] uppercase text-white/75 mt-1 hidden sm:block transition-colors duration-300">
+              South Island Private Guide
+            </span>
+          </div>
+        </a>
+
+        <!-- 桌面版導覽連結 -->
+        <nav class="hidden lg:flex items-center gap-5 xl:gap-7 shrink-0">
+          <a href="#about" data-i18n="nav.about" class="nav-link whitespace-nowrap text-sm font-medium tracking-wider text-white/90 hover:text-glacier-100 transition-colors">
+            關於 Seekai
+          </a>
+          <a href="#routes" data-i18n="nav.routes" class="nav-link whitespace-nowrap text-sm font-medium tracking-wider text-white/90 hover:text-glacier-100 transition-colors">
+            南島精選路線
+          </a>
+          <a href="#route-planner" data-i18n="nav.map" class="nav-link whitespace-nowrap text-sm font-medium tracking-wider text-white/90 hover:text-glacier-100 transition-colors">
+            路線規劃地圖
+          </a>
+          <a href="#stories" data-i18n="nav.stories" class="nav-link whitespace-nowrap text-sm font-medium tracking-wider text-white/90 hover:text-glacier-100 transition-colors">
+            文化故事
+          </a>
+
+          <!-- 繁體中文 / English 雙語切換器 -->
+          <div id="lang-switch-desktop" role="group" aria-label="Language switcher" class="inline-flex items-center shrink-0 rounded-full p-0.5 border border-white/30 bg-white/10 backdrop-blur-sm transition-colors duration-300">
+            <button type="button" data-lang-btn="zh" class="lang-btn whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium tracking-wide transition-all bg-white text-forest-900 shadow-sm">
+              繁中
+            </button>
+            <button type="button" data-lang-btn="en" class="lang-btn whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium tracking-wide transition-all text-white/85 hover:text-white">
+              EN
+            </button>
+          </div>
+
+          <a href="#booking" id="nav-cta" class="whitespace-nowrap shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium tracking-wider bg-white text-forest-900 hover:bg-glacier-100 shadow-sm transition-all duration-300 hover:-translate-y-0.5">
+            <span data-i18n="nav.book">立即預約</span>
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+            </svg>
+          </a>
+        </nav>
+
+        <!-- 手機與平板版：雙語切換器 + 選單按鈕 -->
+        <div class="lg:hidden flex items-center gap-2 shrink-0">
+          <div id="lang-switch-mobile-bar" role="group" aria-label="Language switcher" class="inline-flex items-center shrink-0 rounded-full p-0.5 border border-white/30 bg-white/10 backdrop-blur-sm transition-colors duration-300">
+            <button type="button" data-lang-btn="zh" class="lang-btn whitespace-nowrap px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-all bg-white text-forest-900">
+              繁中
+            </button>
+            <button type="button" data-lang-btn="en" class="lang-btn whitespace-nowrap px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-all text-white/85">
+              EN
+            </button>
+          </div>
+          <button id="mobile-menu-btn" type="button" aria-label="開啟選單" aria-expanded="false" class="p-2 rounded-lg text-white hover:bg-white/10 transition-colors">
+            <svg id="menu-icon-open" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M4 7h16M4 12h16M4 17h16"/>
+            </svg>
+            <svg id="menu-icon-close" class="w-6 h-6 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M18 6 6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 手機與平板版下拉選單 -->
+    <div id="mobile-menu" class="lg:hidden hidden bg-snow/95 backdrop-blur-xl border-b border-sand-200 shadow-lg">
+      <div class="px-6 py-5 flex flex-col gap-4">
+        <a href="#about" data-i18n="nav.about" class="mobile-nav-link text-base font-medium text-forest-900 py-2 border-b border-sand-200/70">關於 Seekai</a>
+        <a href="#routes" data-i18n="nav.routes" class="mobile-nav-link text-base font-medium text-forest-900 py-2 border-b border-sand-200/70">南島精選路線</a>
+        <a href="#route-planner" data-i18n="nav.map" class="mobile-nav-link text-base font-medium text-forest-900 py-2 border-b border-sand-200/70">路線規劃地圖</a>
+        <a href="#stories" data-i18n="nav.stories" class="mobile-nav-link text-base font-medium text-forest-900 py-2 border-b border-sand-200/70">文化故事</a>
+        <a href="#booking" data-i18n="nav.bookMobile" class="mobile-nav-link mt-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full text-sm font-medium bg-forest-900 text-white hover:bg-forest-800 transition-colors">
+          立即預約 15 分鐘免費諮詢
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- =========================================================
+         2. 首頁主視覺（Hero Section）
+    ========================================================== -->
+    <section id="hero" class="relative min-h-screen flex items-center justify-center overflow-hidden bg-forest-950">
+      <!--
+        ==============================================================
+        [可替換照片] 首頁主視覺滿版背景圖（目前為 Unsplash 紐西蘭蒂卡波湖與南阿爾卑斯雪山佔位）
+        建議尺寸：1920 x 1080 以上橫幅照片，替換下方 src 網址或改為本地路徑（例如 ./images/hero.jpg）
+        ==============================================================
+      -->
+      <div class="absolute inset-0 overflow-hidden">
+        <img
+          src="https://images.unsplash.com/photo-1469521669194-babb45599def?auto=format&fit=crop&w=1920&q=85"
+          alt="紐西蘭南島蒂卡波湖與庫克山雪峰壯麗風景"
+          class="w-full h-full object-cover object-center hero-bg-zoom opacity-90"
+        />
+        <!-- 多層次自然漸層遮罩：兼顧壯闊風景通透度與文字閱讀清晰度 -->
+        <div class="absolute inset-0 bg-gradient-to-b from-forest-950/65 via-forest-950/35 to-forest-950/80"></div>
+        <div class="absolute inset-0 bg-gradient-to-r from-forest-950/45 via-transparent to-forest-950/30"></div>
+      </div>
+
+      <!-- 主視覺文案內容 -->
+      <div class="relative z-10 max-w-5xl mx-auto px-6 sm:px-10 text-center pt-24 pb-28 sm:pb-32">
+        <!-- 品牌定位膠囊標籤 -->
+        <div class="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/12 backdrop-blur-md border border-white/25 text-white/95 text-xs sm:text-sm tracking-[0.18em] mb-7">
+          <span class="w-1.5 h-1.5 rounded-full bg-glacier-400"></span>
+          <span data-i18n="hero.badge">AOTEAROA SOUTH ISLAND · 紐西蘭南島在地私人導遊</span>
+        </div>
+
+        <!-- 主標題 -->
+        <h1 data-i18n-html="hero.title" class="font-serif text-3xl sm:text-5xl lg:text-[3.4rem] font-semibold text-white leading-[1.35] sm:leading-[1.28] tracking-wide drop-shadow-sm">
+          跟著在地華語導遊 Seekai，<br class="hidden sm:inline" />走進明信片背後的真實紐西蘭
+        </h1>
+
+        <!-- 副標題 -->
+        <p data-i18n="hero.subtitle" class="mt-6 text-base sm:text-xl text-sand-100/95 font-light tracking-[0.12em] max-w-2xl mx-auto leading-relaxed">
+          南島客製化包車・私房路線規劃・毛利文化深度導覽
+        </p>
+
+        <!-- 行動呼籲按鈕（CTA） -->
+        <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <a href="#booking" class="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-full bg-glacier-600 hover:bg-glacier-700 text-white font-medium text-base tracking-wider shadow-lg shadow-forest-950/30 transition-all duration-300 hover:-translate-y-1">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/>
+            </svg>
+            <span data-i18n="hero.ctaPrimary">預約 15 分鐘免費行程諮詢</span>
+          </a>
+          <a href="#routes" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-4 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/30 text-white font-normal text-base tracking-wider transition-all duration-300">
+            <span data-i18n="hero.ctaSecondary">探索南島精選路線</span>
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m6 9 6 6 6-6"/>
+            </svg>
+          </a>
+        </div>
+
+        <!-- 信任細節條 -->
+        <div class="mt-14 pt-8 border-t border-white/15 grid grid-cols-3 gap-4 max-w-2xl mx-auto text-white/85">
+          <div>
+            <p class="font-display text-2xl sm:text-3xl font-semibold text-white leading-none">100%</p>
+            <p data-i18n="hero.stat1" class="text-xs sm:text-sm text-white/75 mt-1.5 tracking-wider">獨立客製不併團</p>
+          </div>
+          <div class="border-x border-white/15 px-2">
+            <p class="font-display text-2xl sm:text-3xl font-semibold text-white leading-none">SH8 &amp; 94</p>
+            <p data-i18n="hero.stat2" class="text-xs sm:text-sm text-white/75 mt-1.5 tracking-wider">南島全季深度熟路</p>
+          </div>
+          <div>
+            <p class="font-display text-2xl sm:text-3xl font-semibold text-white leading-none">1-on-1</p>
+            <p data-i18n="hero.stat3" class="text-xs sm:text-sm text-white/75 mt-1.5 tracking-wider">在地華語文化領路</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 底部向下滑動提示 -->
+      <a href="#about" aria-label="向下捲動了解更多" class="absolute bottom-7 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-white/70 hover:text-white transition-colors">
+        <span class="text-[11px] tracking-[0.25em] uppercase">Scroll</span>
+        <span class="w-px h-8 bg-gradient-to-b from-white/80 to-transparent"></span>
+      </a>
+    </section>
+
+    <!-- =========================================================
+         3. 關於我與服務優勢（Why Choose Seekai）
+    ========================================================== -->
+    <section id="about" class="py-24 sm:py-32 bg-snow relative overflow-hidden">
+      <!-- 細緻背景裝飾圓暈 -->
+      <div class="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-glacier-100/50 blur-3xl pointer-events-none"></div>
+
+      <div class="max-w-7xl mx-auto px-5 sm:px-8 relative">
+        <!-- 上半部：關於 Seekai 故事介紹 -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+          <!-- 左側文字介紹 -->
+          <div class="lg:col-span-7 reveal">
+            <span class="inline-block text-xs font-semibold tracking-[0.25em] uppercase text-glacier-600 mb-3">
+              Why Choose Seekai
+            </span>
+            <h2 data-i18n-html="about.title" class="font-serif text-3xl sm:text-4xl font-semibold text-forest-900 leading-snug">
+              不只是載您看風景的司機，<br />更是陪您讀懂南島的在地朋友
+            </h2>
+            <div class="w-14 h-0.5 bg-sand-300 my-6"></div>
+            <p data-i18n="about.p1" class="text-ink-muted text-base sm:text-[1.05rem] mb-5">
+              長年旅居並深耕紐西蘭南島，我走過無數次清晨薄霧籠罩的普卡基湖、冬日飄雪的林迪斯隘口，也熟悉這片土地四季交替時的每一次呼吸。對我而言，紐西蘭最動人的時刻，往往不在觀光團匆匆打卡的 15 分鐘裡，而是在轉過某個山彎後，為一道突然灑落的冰川光束而停下車的那份餘裕。
+            </p>
+            <p data-i18n-html="about.p2" class="text-ink-muted text-base sm:text-[1.05rem]">
+              透過 <strong class="text-forest-900 font-medium">seekai.exploreNZ</strong>，我希望用母語的溫度與多年在地生活累積的視野，為每一組家庭、情侶與好友量身打造專屬旅程——讓您不必煩惱右駕山路與天氣變數，真正沉澱下來，聽見山谷的風、毛利古老的傳說，以及屬於您自己的紐西蘭記憶。
+            </p>
+          </div>
+
+          <!-- 右側自然視覺與引言框 -->
+          <div class="lg:col-span-5 reveal">
+            <div class="relative rounded-2xl overflow-hidden shadow-soft bg-sand-100 p-3">
+              <!--
+                ==============================================================
+                [可替換照片] 關於 Seekai 形象照或南島公路風景照
+                建議替換為您本人帶團、車側風景或南島生活照（比例 4:3 或 4:5）
+                ==============================================================
+              -->
+              <div class="relative rounded-xl overflow-hidden aspect-[4/3]">
+                <img
+                  src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1200&q=80"
+                  alt="紐西蘭南島壯麗雪山與高山谷地景致"
+                  class="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+                />
+                <div class="absolute inset-0 bg-gradient-to-t from-forest-950/65 via-transparent to-transparent"></div>
+                <div class="absolute bottom-4 left-4 right-4 text-white">
+                  <p data-i18n="about.quote" class="font-serif text-sm sm:text-base italic leading-relaxed text-white/95">
+                    「旅行不該是追趕清單，而是讓風景有機會走進心裡。」
+                  </p>
+                  <p class="text-xs tracking-widest text-sand-200 mt-1.5 uppercase">— Seekai, South Island NZ</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 下半部：3 張核心優勢卡片 -->
+        <div class="mt-20 grid grid-cols-1 md:grid-cols-3 gap-7 lg:gap-8">
+          <!-- 優勢卡片 1 -->
+          <article class="reveal group bg-snow-pure rounded-2xl p-8 border border-sand-200/80 shadow-soft hover:shadow-card-hover hover:-translate-y-1.5 transition-all duration-300">
+            <div class="w-12 h-12 rounded-xl bg-glacier-100 text-glacier-700 flex items-center justify-center mb-6 group-hover:bg-forest-900 group-hover:text-white transition-colors duration-300">
+              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/>
+                <path d="m9 12 2 2 4-4"/>
+              </svg>
+            </div>
+            <span data-i18n="about.card1.tag" class="text-xs font-medium tracking-widest text-glacier-600 uppercase">01 · 安全省心</span>
+            <h3 data-i18n="about.card1.title" class="font-serif text-xl font-semibold text-forest-900 mt-2 mb-3">
+              熟悉南島路況與季節變化
+            </h3>
+            <p data-i18n="about.card1.desc" class="text-sm text-ink-muted leading-relaxed">
+              紐西蘭南島地形多變，冬季高山暗冰、強側風與單線橋樑皆需豐富經驗。由熟悉各條國道與即時天氣預報的在地導遊掌舵，讓您徹底告別右駕壓力，安心享受沿途純淨風光。
+            </p>
+          </article>
+
+          <!-- 優勢卡片 2 -->
+          <article class="reveal group bg-snow-pure rounded-2xl p-8 border border-sand-200/80 shadow-soft hover:shadow-card-hover hover:-translate-y-1.5 transition-all duration-300">
+            <div class="w-12 h-12 rounded-xl bg-sand-100 text-forest-800 flex items-center justify-center mb-6 group-hover:bg-forest-900 group-hover:text-white transition-colors duration-300">
+              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+              </svg>
+            </div>
+            <span data-i18n="about.card2.tag" class="text-xs font-medium tracking-widest text-sand-500 uppercase">02 · 深度人文</span>
+            <h3 data-i18n="about.card2.title" class="font-serif text-xl font-semibold text-forest-900 mt-2 mb-3">
+              有溫度的文化說書人
+            </h3>
+            <p data-i18n="about.card2.desc" class="text-sm text-ink-muted leading-relaxed">
+              每一座雪山與湖泊都有它的名字與靈魂。旅途中我會與您分享毛利神話、冰川地質演變、十九世紀淘金歷史與紐西蘭人的日常哲學，讓壯麗景色成為立體而動人的故事。
+            </p>
+          </article>
+
+          <!-- 優勢卡片 3 -->
+          <article class="reveal group bg-snow-pure rounded-2xl p-8 border border-sand-200/80 shadow-soft hover:shadow-card-hover hover:-translate-y-1.5 transition-all duration-300">
+            <div class="w-12 h-12 rounded-xl bg-forest-100 text-forest-900 flex items-center justify-center mb-6 group-hover:bg-forest-900 group-hover:text-white transition-colors duration-300">
+              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <span data-i18n="about.card3.tag" class="text-xs font-medium tracking-widest text-forest-700 uppercase">03 · 專屬餘裕</span>
+            <h3 data-i18n="about.card3.title" class="font-serif text-xl font-semibold text-forest-900 mt-2 mb-3">
+              彈性不趕路的私人節奏
+            </h3>
+            <p data-i18n="about.card3.desc" class="text-sm text-ink-muted leading-relaxed">
+              無須配合大團作息，也不會被催促上車。想在湖畔小鎮多喝一杯現烘咖啡、在隱密觀景台等待雲霧散開，或依照長輩與孩子的體力彈性微調行程，每一刻都由您自在掌控。
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================
+         4. 南島精選路線（Featured South Island Routes）
+    ========================================================== -->
+    <section id="routes" class="py-24 sm:py-32 bg-sand-50 border-y border-sand-200/70">
+      <div class="max-w-7xl mx-auto px-5 sm:px-8">
+        <!-- 區塊標題 -->
+        <div class="max-w-3xl mx-auto text-center mb-16 reveal">
+          <span class="inline-block text-xs font-semibold tracking-[0.25em] uppercase text-glacier-600 mb-3">
+            Featured South Island Routes
+          </span>
+          <h2 data-i18n="routes.title" class="font-serif text-3xl sm:text-4xl font-semibold text-forest-900">
+            南島精選路線推薦
+          </h2>
+          <p data-i18n="routes.subtitle" class="mt-4 text-ink-muted text-base sm:text-[1.05rem]">
+            以下三條經典軸線皆可獨立安排，或自由串聯組合成 7 至 14 天的南島全景私房行程，並依季節與您的步調完全客製。
+          </p>
+        </div>
+
+        <!-- 3 欄路線卡片 -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <!-- 路線 1：經典中線冰川星空之旅 -->
+          <article class="reveal group bg-snow-pure rounded-2xl overflow-hidden border border-sand-200/80 shadow-soft hover:shadow-card-hover hover:-translate-y-1.5 transition-all duration-300 flex flex-col">
+            <div class="relative aspect-[16/10] overflow-hidden bg-forest-900">
+              <!-- [可替換照片] 路線 1 封面圖：建議放蒂卡波湖星空、普卡基湖或庫克山步道實拍 -->
+              <img
+                src="https://images.unsplash.com/photo-1589802829985-817e51171b92?auto=format&fit=crop&w=1200&q=80"
+                alt="經典中線冰川星空之旅：庫克山與冰川湖泊"
+                class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+              />
+              <div class="absolute inset-0 bg-gradient-to-t from-forest-950/60 via-transparent to-transparent"></div>
+              <!-- 天數標籤 -->
+              <span data-i18n="routes.r1.days" class="absolute top-4 left-4 px-3.5 py-1 rounded-full text-xs font-medium tracking-wider bg-snow/90 backdrop-blur-sm text-forest-900 shadow-sm">
+                建議 4–5 天
+              </span>
+              <span class="absolute bottom-3.5 left-4 text-xs tracking-widest text-white/90 uppercase font-medium">
+                Glaciers &amp; Dark Sky
+              </span>
+            </div>
+
+            <div class="p-7 flex flex-col flex-1">
+              <h3 data-i18n="routes.r1.title" class="font-serif text-2xl font-semibold text-forest-900">
+                經典中線冰川星空之旅
+              </h3>
+              <!-- 路線串聯標籤 -->
+              <p data-i18n="routes.r1.chain" class="mt-3 text-sm font-medium text-glacier-700 bg-glacier-100/70 rounded-xl px-4 py-2.5 leading-relaxed">
+                基督城 ➔ 蒂卡波湖（觀星） ➔ 普卡基湖 ➔ 庫克山國家公園
+              </p>
+
+              <!-- 路線亮點清單 -->
+              <ul class="mt-5 space-y-2.5 text-sm text-ink-muted flex-1">
+                <li class="flex items-start gap-2.5">
+                  <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-glacier-600 shrink-0"></span>
+                  <span data-i18n="routes.r1.b1">深入全球暗空保護區，在好牧羊人教堂旁仰望南半球璀璨銀河。</span>
+                </li>
+                <li class="flex items-start gap-2.5">
+                  <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-glacier-600 shrink-0"></span>
+                  <span data-i18n="routes.r1.b2">沿著牛奶藍的普卡基湖品嚐高山冰川鮭魚，遠眺毛利聖山 Aoraki。</span>
+                </li>
+                <li class="flex items-start gap-2.5">
+                  <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-glacier-600 shrink-0"></span>
+                  <span data-i18n="routes.r1.b3">漫步庫克山谷與塔斯曼冰川觀景點，近距離感受萬年冰河氣勢。</span>
+                </li>
+              </ul>
+
+              <div class="mt-7 pt-5 border-t border-sand-200/70">
+                <button
+                  type="button"
+                  data-route-key="r1"
+                  data-route="經典中線冰川星空之旅（基督城 ➔ 蒂卡波湖 ➔ 普卡基湖 ➔ 庫克山）"
+                  class="consult-route-btn w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-forest-900 hover:bg-forest-800 text-white text-sm font-medium tracking-wider transition-all duration-300"
+                >
+                  <span data-i18n="routes.inquire">諮詢此路線</span>
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <!-- 路線 2：湖光山色與極限冒險線 -->
+          <article class="reveal group bg-snow-pure rounded-2xl overflow-hidden border border-sand-200/80 shadow-soft hover:shadow-card-hover hover:-translate-y-1.5 transition-all duration-300 flex flex-col">
+            <div class="relative aspect-[16/10] overflow-hidden bg-forest-900">
+              <!-- [可替換照片] 路線 2 封面圖：皇后鎮瓦卡蒂普湖與群山全景（Queenstown） -->
+              <img
+                src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Queenstown_1_%288168013172%29.jpg/1280px-Queenstown_1_%288168013172%29.jpg"
+                alt="湖光山色與極限冒險線：皇后鎮與瓦卡蒂普湖壯麗山景"
+                class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+              />
+              <div class="absolute inset-0 bg-gradient-to-t from-forest-950/60 via-transparent to-transparent"></div>
+              <!-- 天數標籤 -->
+              <span data-i18n="routes.r2.days" class="absolute top-4 left-4 px-3.5 py-1 rounded-full text-xs font-medium tracking-wider bg-snow/90 backdrop-blur-sm text-forest-900 shadow-sm">
+                建議 4–6 天
+              </span>
+              <span class="absolute bottom-3.5 left-4 text-xs tracking-widest text-white/90 uppercase font-medium">
+                Alpine Lakes &amp; Adventure
+              </span>
+            </div>
+
+            <div class="p-7 flex flex-col flex-1">
+              <h3 data-i18n="routes.r2.title" class="font-serif text-2xl font-semibold text-forest-900">
+                湖光山色與極限冒險線
+              </h3>
+              <!-- 路線串聯標籤 -->
+              <p data-i18n="routes.r2.chain" class="mt-3 text-sm font-medium text-forest-800 bg-sand-100 rounded-xl px-4 py-2.5 leading-relaxed">
+                瓦納卡 ➔ 克倫威爾 ➔ 箭鎮 ➔ 皇后鎮 ➔ 格萊諾基
+              </p>
+
+              <!-- 路線亮點清單 -->
+              <ul class="mt-5 space-y-2.5 text-sm text-ink-muted flex-1">
+                <li class="flex items-start gap-2.5">
+                  <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-sand-500 shrink-0"></span>
+                  <span data-i18n="routes.r2.b1">慢遊悠閒湖畔小鎮瓦納卡，走訪克倫威爾果園與百年華人淘金聚落箭鎮。</span>
+                </li>
+                <li class="flex items-start gap-2.5">
+                  <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-sand-500 shrink-0"></span>
+                  <span data-i18n="routes.r2.b2">在冒險之都皇后鎮依喜好安排高空跳傘、噴射快艇、纜車或酒莊微醺。</span>
+                </li>
+                <li class="flex items-start gap-2.5">
+                  <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-sand-500 shrink-0"></span>
+                  <span data-i18n="routes.r2.b3">馳騁全球最美湖濱公路之一，探訪《魔戒》取景地格萊諾基與天堂鎮。</span>
+                </li>
+              </ul>
+
+              <div class="mt-7 pt-5 border-t border-sand-200/70">
+                <button
+                  type="button"
+                  data-route-key="r2"
+                  data-route="湖光山色與極限冒險線（瓦納卡 ➔ 克倫威爾 ➔ 箭鎮 ➔ 皇后鎮 ➔ 格萊諾基）"
+                  class="consult-route-btn w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-forest-900 hover:bg-forest-800 text-white text-sm font-medium tracking-wider transition-all duration-300"
+                >
+                  <span data-i18n="routes.inquire">諮詢此路線</span>
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <!-- 路線 3：世界遺產峽灣秘境線 -->
+          <article class="reveal group bg-snow-pure rounded-2xl overflow-hidden border border-sand-200/80 shadow-soft hover:shadow-card-hover hover:-translate-y-1.5 transition-all duration-300 flex flex-col">
+            <div class="relative aspect-[16/10] overflow-hidden bg-forest-900">
+              <!-- [可替換照片] 路線 3 封面圖：米佛峽灣教冠峰經典風景（Milford Sound） -->
+              <img
+                src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Milford_Sound_%28New_Zealand%29.JPG/1280px-Milford_Sound_%28New_Zealand%29.JPG"
+                alt="世界遺產峽灣秘境線：紐西蘭米佛峽灣與教冠峰倒影"
+                class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+              />
+              <div class="absolute inset-0 bg-gradient-to-t from-forest-950/60 via-transparent to-transparent"></div>
+              <!-- 天數標籤 -->
+              <span data-i18n="routes.r3.days" class="absolute top-4 left-4 px-3.5 py-1 rounded-full text-xs font-medium tracking-wider bg-snow/90 backdrop-blur-sm text-forest-900 shadow-sm">
+                建議 2–3 天
+              </span>
+              <span class="absolute bottom-3.5 left-4 text-xs tracking-widest text-white/90 uppercase font-medium">
+                UNESCO Fiordland
+              </span>
+            </div>
+
+            <div class="p-7 flex flex-col flex-1">
+              <h3 data-i18n="routes.r3.title" class="font-serif text-2xl font-semibold text-forest-900">
+                世界遺產峽灣秘境線
+              </h3>
+              <!-- 路線串聯標籤 -->
+              <p data-i18n="routes.r3.chain" class="mt-3 text-sm font-medium text-forest-900 bg-forest-100/80 rounded-xl px-4 py-2.5 leading-relaxed">
+                皇后鎮 ➔ 蒂阿瑙 ➔ 米佛峽灣（沿途 17 大秘境停靠）
+              </p>
+
+              <!-- 路線亮點清單 -->
+              <ul class="mt-5 space-y-2.5 text-sm text-ink-muted flex-1">
+                <li class="flex items-start gap-2.5">
+                  <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-forest-700 shrink-0"></span>
+                  <span data-i18n="routes.r3.b1">告別走馬看花的觀光巴士，深入 SH94 峽灣公路沿途精選 17 大秘境停靠點。</span>
+                </li>
+                <li class="flex items-start gap-2.5">
+                  <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-forest-700 shrink-0"></span>
+                  <span data-i18n="routes.r3.b2">探訪鏡湖倒影、艾格靈頓山谷、荷馬隧道與高山鸚鵡 Kea 出沒地帶。</span>
+                </li>
+                <li class="flex items-start gap-2.5">
+                  <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-forest-700 shrink-0"></span>
+                  <span data-i18n="routes.r3.b3">搭乘遊船巡航世界自然遺產米佛峽灣，在百米飛瀑與教冠峰下感受震撼。</span>
+                </li>
+              </ul>
+
+              <div class="mt-7 pt-5 border-t border-sand-200/70">
+                <button
+                  type="button"
+                  data-route-key="r3"
+                  data-route="世界遺產峽灣秘境線（皇后鎮 ➔ 蒂阿瑙 ➔ 米佛峽灣沿途 17 大秘境）"
+                  class="consult-route-btn w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-forest-900 hover:bg-forest-800 text-white text-sm font-medium tracking-wider transition-all duration-300"
+                >
+                  <span data-i18n="routes.inquire">諮詢此路線</span>
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================
+         4.5 互動式南島客製化路線規劃地圖（Interactive Route Planner）
+    ========================================================== -->
+    <section id="route-planner" class="py-24 sm:py-32 bg-gradient-to-b from-snow via-glacier-100/25 to-snow border-b border-sand-200/70 relative overflow-hidden">
+      <div class="max-w-7xl mx-auto px-5 sm:px-8 relative">
+        <!-- 區塊標題 -->
+        <div class="max-w-3xl mx-auto text-center mb-10 reveal">
+          <span data-i18n="planner.eyebrow" class="inline-block text-xs font-semibold tracking-[0.25em] uppercase text-glacier-600 mb-3">
+            Interactive Route Planner · 南島專屬自由行規劃
+          </span>
+          <h2 data-i18n="planner.title" class="font-serif text-3xl sm:text-4xl font-semibold text-forest-900">
+            互動式南島客製化路線規劃地圖
+          </h2>
+          <p data-i18n="planner.subtitle" class="mt-4 text-ink-muted text-base sm:text-[1.05rem]">
+            可一鍵套用紐西蘭南島經典主題路線，或從南島六大分區 24 個精選旅遊景點中自由加入專屬自由行；系統即時計算各段行車距離、預估車程時間與建議包車天數。
+          </p>
+        </div>
+
+        <!-- 新西蘭南島經典主題路線（一鍵套用列，靈感參考 Tourism New Zealand 官方推薦） -->
+        <div class="mb-8 reveal">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-3.5 px-1">
+            <span class="text-xs font-semibold tracking-[0.2em] uppercase text-forest-800 flex items-center gap-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-glacier-600"></span>
+              <span data-i18n="planner.themesHeading">新西蘭南島經典主題路線（點選一鍵套用到地圖）</span>
+            </span>
+            <span data-i18n="planner.themesHint" class="text-xs text-ink-muted">
+              套用後仍可自由增減任何景點
+            </span>
+          </div>
+          <div id="theme-preset-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <!-- 主題 1：高山湖泊經典線 -->
+            <button
+              type="button"
+              data-theme="alpine-lakes"
+              class="theme-preset-btn text-left p-4 rounded-2xl border bg-forest-900 text-white border-forest-900 shadow-md transition-all duration-200 hover:-translate-y-0.5"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <span data-i18n="planner.t1.badge" class="text-[11px] font-medium tracking-wider px-2.5 py-0.5 rounded-full bg-white/15 text-glacier-100">經典必走 · 7–8 天</span>
+                <span data-i18n="planner.t1.count" class="text-xs opacity-75">6 景點</span>
+              </div>
+              <p data-i18n="planner.t1.title" class="font-serif text-base font-semibold mt-2">高山湖泊經典線</p>
+              <p data-i18n="planner.t1.route" class="text-xs opacity-80 mt-1 leading-relaxed">基督城 ➔ 蒂卡波湖 ➔ 普卡基湖 ➔ 庫克山 ➔ 瓦納卡 ➔ 皇后鎮</p>
+            </button>
+
+            <!-- 主題 2：西海岸冰川秘境線 -->
+            <button
+              type="button"
+              data-theme="west-coast"
+              class="theme-preset-btn text-left p-4 rounded-2xl border bg-snow-pure text-forest-900 border-sand-200 hover:border-glacier-400 shadow-soft transition-all duration-200 hover:-translate-y-0.5"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <span data-i18n="planner.t2.badge" class="text-[11px] font-medium tracking-wider px-2.5 py-0.5 rounded-full bg-glacier-100 text-glacier-700">冰川雨林 · 8–10 天</span>
+                <span data-i18n="planner.t2.count" class="text-xs text-ink-muted">6 景點</span>
+              </div>
+              <p data-i18n="planner.t2.title" class="font-serif text-base font-semibold mt-2">西海岸冰川秘境線</p>
+              <p data-i18n="planner.t2.route" class="text-xs text-ink-muted mt-1 leading-relaxed">基督城 ➔ 亞瑟隘口 ➔ 霍基蒂卡 ➔ 法蘭茲約瑟夫 ➔ 瓦納卡 ➔ 皇后鎮</p>
+            </button>
+
+            <!-- 主題 3：峽灣與南方景觀線 -->
+            <button
+              type="button"
+              data-theme="southern-scenic"
+              class="theme-preset-btn text-left p-4 rounded-2xl border bg-snow-pure text-forest-900 border-sand-200 hover:border-glacier-400 shadow-soft transition-all duration-200 hover:-translate-y-0.5"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <span data-i18n="planner.t3.badge" class="text-[11px] font-medium tracking-wider px-2.5 py-0.5 rounded-full bg-forest-100 text-forest-800">峽灣生態 · 7–9 天</span>
+                <span data-i18n="planner.t3.count" class="text-xs text-ink-muted">7 景點</span>
+              </div>
+              <p data-i18n="planner.t3.title" class="font-serif text-base font-semibold mt-2">峽灣與南方景觀線</p>
+              <p data-i18n="planner.t3.route" class="text-xs text-ink-muted mt-1 leading-relaxed">皇后鎮 ➔ 格萊諾基 ➔ 蒂阿瑙 ➔ 米佛峽灣 ➔ 卡特林斯 ➔ 但尼丁 ➔ 奧瑪魯</p>
+            </button>
+
+            <!-- 主題 4：山海太平洋生態線 -->
+            <button
+              type="button"
+              data-theme="alpine-pacific"
+              class="theme-preset-btn text-left p-4 rounded-2xl border bg-snow-pure text-forest-900 border-sand-200 hover:border-glacier-400 shadow-soft transition-all duration-200 hover:-translate-y-0.5"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <span data-i18n="planner.t4.badge" class="text-[11px] font-medium tracking-wider px-2.5 py-0.5 rounded-full bg-sand-100 text-forest-800">賞鯨溫泉 · 5–6 天</span>
+                <span data-i18n="planner.t4.count" class="text-xs text-ink-muted">5 景點</span>
+              </div>
+              <p data-i18n="planner.t4.title" class="font-serif text-base font-semibold mt-2">山海太平洋生態線</p>
+              <p data-i18n="planner.t4.route" class="text-xs text-ink-muted mt-1 leading-relaxed">凱庫拉 ➔ 漢默溫泉 ➔ 基督城 ➔ 阿卡羅阿 ➔ 蒂卡波湖</p>
+            </button>
+          </div>
+        </div>
+
+        <!-- 規劃工具主體：左控制面板（手機在上方） + 右互動地圖 -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-7 items-stretch">
+          <!-- 左側互動控制面板（佔 5 欄） -->
+          <div class="lg:col-span-5 reveal bg-snow-pure rounded-3xl border border-sand-200/90 shadow-soft flex flex-col overflow-hidden">
+            <!-- 面板頂部：三步自由行智能排程進度、搜尋地點、分區篩選與快速操作 -->
+            <div class="px-5 sm:px-6 py-4 bg-sand-50 border-b border-sand-200/80 space-y-3">
+              <!-- 三步自由行智能排程指示列 -->
+              <div class="grid grid-cols-3 gap-1.5 text-[11px] font-medium">
+                <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-forest-900 text-white">
+                  <span class="w-4 h-4 rounded-full bg-glacier-400 text-forest-950 font-bold flex items-center justify-center text-[10px] shrink-0">1</span>
+                  <span data-i18n="planner.step1" class="truncate">選目的地</span>
+                </div>
+                <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white border border-sand-200 text-forest-900">
+                  <span class="w-4 h-4 rounded-full bg-glacier-100 text-glacier-700 font-bold flex items-center justify-center text-[10px] shrink-0">2</span>
+                  <span data-i18n="planner.step2" class="truncate">智能排序</span>
+                </div>
+                <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white border border-sand-200 text-forest-900">
+                  <span class="w-4 h-4 rounded-full bg-sand-100 text-forest-800 font-bold flex items-center justify-center text-[10px] shrink-0">3</span>
+                  <span data-i18n="planner.step3" class="truncate">分享／報價</span>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-sm font-semibold text-forest-900 flex items-center gap-2">
+                  <svg class="w-4 h-4 text-glacier-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/>
+                  </svg>
+                  <span data-i18n="planner.panelTitle">三步自由行智能排程器</span>
+                </span>
+                <div class="flex items-center gap-1.5 text-xs">
+                  <button id="planner-reset-btn" data-i18n="planner.btnReset" type="button" class="px-2.5 py-1 rounded-full bg-white hover:bg-glacier-100 text-forest-900 border border-sand-200 transition-colors">
+                    重設範例
+                  </button>
+                  <button id="planner-all-btn" data-i18n="planner.btnAll" type="button" class="px-2.5 py-1 rounded-full bg-white hover:bg-glacier-100 text-ink-muted hover:text-forest-900 border border-sand-200 transition-colors">
+                    全選
+                  </button>
+                  <button id="planner-clear-btn" data-i18n="planner.btnClear" type="button" class="px-2.5 py-1 rounded-full bg-white hover:bg-sand-200/60 text-ink-muted hover:text-forest-900 border border-sand-200 transition-colors">
+                    清空
+                  </button>
+                </div>
+              </div>
+
+              <!-- 搜尋地點輸入框 -->
+              <div class="relative">
+                <svg class="w-4 h-4 text-ink-muted/70 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+                </svg>
+                <input
+                  id="planner-search-input"
+                  type="text"
+                  data-i18n-placeholder="planner.searchPlaceholder"
+                  placeholder="搜尋南島景點（如：庫克山、Queenstown、冰川、企鵝）"
+                  class="w-full pl-9 pr-9 py-2 rounded-xl bg-white border border-sand-200 text-xs sm:text-sm text-ink placeholder:text-ink-muted/65 focus:outline-none focus:border-glacier-600 focus:ring-2 focus:ring-glacier-100 transition-all"
+                />
+                <button
+                  id="planner-search-clear"
+                  type="button"
+                  aria-label="清除搜尋"
+                  class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-sand-200/80 hover:bg-sand-300 text-ink text-xs flex items-center justify-center"
+                >
+                  ×
+                </button>
+              </div>
+
+              <!-- 紐西蘭南島區域篩選標籤（對應南島旅遊地圖分區） -->
+              <div id="region-filter-bar" class="flex flex-wrap gap-1.5 pt-0.5">
+                <button type="button" data-region="core" data-i18n="planner.regCore" class="region-tab-btn px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors bg-glacier-600 text-white">
+                  Seekai 核心 (13)
+                </button>
+                <button type="button" data-region="all" data-i18n="planner.regAll" class="region-tab-btn px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors bg-white text-ink-muted hover:text-forest-900 border border-sand-200">
+                  全部景點 (24)
+                </button>
+                <button type="button" data-region="north-east" data-i18n="planner.regNE" class="region-tab-btn px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors bg-white text-ink-muted hover:text-forest-900 border border-sand-200">
+                  北部與東岸
+                </button>
+                <button type="button" data-region="central" data-i18n="planner.regCentral" class="region-tab-btn px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors bg-white text-ink-muted hover:text-forest-900 border border-sand-200">
+                  中線冰川湖
+                </button>
+                <button type="button" data-region="lakes" data-i18n="planner.regLakes" class="region-tab-btn px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors bg-white text-ink-muted hover:text-forest-900 border border-sand-200">
+                  皇后鎮湖區
+                </button>
+                <button type="button" data-region="west-coast" data-i18n="planner.regWest" class="region-tab-btn px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors bg-white text-ink-muted hover:text-forest-900 border border-sand-200">
+                  西海岸冰川
+                </button>
+                <button type="button" data-region="south" data-i18n="planner.regSouth" class="region-tab-btn px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors bg-white text-ink-muted hover:text-forest-900 border border-sand-200">
+                  峽灣與南部
+                </button>
+              </div>
+
+              <!-- 順時針／逆時針（北往南 / 南往北）方向切換 -->
+              <div class="flex items-center justify-between gap-2 pt-1 border-t border-sand-200/70">
+                <span data-i18n="planner.dirLabel" class="text-xs text-ink-muted">動線排序方向：</span>
+                <div class="inline-flex rounded-full bg-sand-200/70 p-0.5 text-xs">
+                  <button
+                    id="dir-north-south"
+                    type="button"
+                    data-dir="ns"
+                    data-i18n="planner.dirNS"
+                    class="dir-btn px-3 py-1 rounded-full font-medium transition-all bg-forest-900 text-white shadow-sm"
+                  >
+                    北 ➔ 南（順行）
+                  </button>
+                  <button
+                    id="dir-south-north"
+                    type="button"
+                    data-dir="sn"
+                    data-i18n="planner.dirSN"
+                    class="dir-btn px-3 py-1 rounded-full font-medium transition-all text-ink-muted hover:text-forest-900"
+                  >
+                    南 ➔ 北（逆行）
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 24 個南島旅遊景點勾選清單 -->
+            <div id="planner-spot-list" class="p-4 sm:p-5 space-y-2 overflow-y-auto max-h-[300px] lg:max-h-[340px] flex-1">
+              <!-- 由 JavaScript 動態渲染南島旅遊景點 -->
+            </div>
+
+            <!-- 即時路線摘要面板（含地點、各段距離與行車時間計算器） -->
+            <div class="p-5 sm:p-6 bg-sand-100/80 border-t border-sand-200/90 space-y-4">
+              <!-- 4 項即時數據指標 -->
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div class="bg-snow-pure rounded-xl p-2.5 border border-sand-200/80 text-center">
+                  <p data-i18n="planner.metricSpots" class="text-[11px] text-ink-muted tracking-wider">已選景點</p>
+                  <p id="summary-count" class="font-serif text-base sm:text-lg font-semibold text-forest-900 mt-0.5">6 處</p>
+                </div>
+                <div class="bg-snow-pure rounded-xl p-2.5 border border-sand-200/80 text-center">
+                  <p data-i18n="planner.metricDist" class="text-[11px] text-ink-muted tracking-wider">預估總距離</p>
+                  <p id="summary-distance" class="font-serif text-base sm:text-lg font-semibold text-glacier-700 mt-0.5">約 608 km</p>
+                </div>
+                <div class="bg-snow-pure rounded-xl p-2.5 border border-sand-200/80 text-center">
+                  <p data-i18n="planner.metricTime" class="text-[11px] text-ink-muted tracking-wider">純行車時間</p>
+                  <p id="summary-drive-time" class="font-serif text-base sm:text-lg font-semibold text-forest-900 mt-0.5">約 7h 50m</p>
+                </div>
+                <div class="bg-snow-pure rounded-xl p-2.5 border border-sand-200/80 text-center">
+                  <p data-i18n="planner.metricDays" class="text-[11px] text-ink-muted tracking-wider">建議天數</p>
+                  <p id="summary-days" class="font-serif text-base sm:text-lg font-semibold text-forest-800 mt-0.5">5–6 天</p>
+                </div>
+              </div>
+
+              <!-- 自動生成的文字路線清單 + 逐段距離與時間明細 -->
+              <div class="bg-snow-pure rounded-xl p-3.5 border border-sand-200/80 space-y-2.5">
+                <div class="flex items-center justify-between gap-2">
+                  <p data-i18n="planner.previewLabel" class="text-[11px] font-medium tracking-widest uppercase text-glacier-600">
+                    您的專屬自由行路線與車程估算
+                  </p>
+                  <button
+                    id="toggle-segments-btn"
+                    type="button"
+                    class="text-[11px] font-medium text-forest-800 hover:text-glacier-700 underline underline-offset-2"
+                  >
+                    收合各段時間
+                  </button>
+                </div>
+                <p id="summary-route-text" class="text-sm font-medium text-forest-900 leading-relaxed">
+                  基督城 ➔ 蒂卡波湖 ➔ 普卡基湖 ➔ 庫克山 ➔ 瓦納卡 ➔ 皇后鎮
+                </p>
+
+                <!-- 各段地點、距離與時間明細表 -->
+                <div id="route-segments-wrap" class="pt-2 border-t border-sand-200/70">
+                  <ul id="route-segments-list" class="space-y-1.5 max-h-36 overflow-y-auto pr-1 text-xs text-ink-muted">
+                    <!-- 由 JavaScript 動態渲染每段距離與預估行車時間 -->
+                  </ul>
+                  <p data-i18n="planner.driveNote" class="mt-2 text-[11px] text-ink-muted/80 leading-snug">
+                    * 參考紐西蘭山區雙線道實際車速估算（純行車時間，建議另預留 20% 拍照與休息時間）。
+                  </p>
+                </div>
+              </div>
+
+              <!-- 步驟三：無縫銜接 Google Calendar 預約報價 + 保存並分享行程 -->
+              <div class="space-y-2.5">
+                <button
+                  id="book-custom-route-btn"
+                  type="button"
+                  class="w-full inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl bg-forest-900 hover:bg-forest-800 disabled:bg-sand-300 disabled:cursor-not-allowed text-white font-medium text-sm sm:text-base tracking-wider shadow-md transition-all duration-300 hover:-translate-y-0.5"
+                >
+                  <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/>
+                  </svg>
+                  <span data-i18n="planner.ctaBook">請 Seekai 幫我優化／報價（預約諮詢）</span>
+                  <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+                  </svg>
+                </button>
+
+                <button
+                  id="share-route-btn"
+                  type="button"
+                  class="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-snow-pure hover:bg-glacier-100/70 disabled:opacity-50 disabled:cursor-not-allowed text-forest-900 border border-sand-300/90 text-xs sm:text-sm font-medium tracking-wider transition-colors"
+                >
+                  <svg class="w-4 h-4 text-glacier-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/>
+                  </svg>
+                  <span data-i18n="planner.ctaShare">保存並分享這份專屬行程連結</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 右側 Leaflet 互動地圖（佔 7 欄） -->
+          <div class="lg:col-span-7 reveal relative rounded-3xl overflow-hidden border border-sand-200/90 shadow-soft bg-glacier-100/50 min-h-[460px] sm:min-h-[540px] lg:min-h-[760px]">
+            <div id="nz-route-map" class="w-full h-full min-h-[460px] sm:min-h-[540px] lg:min-h-[760px]"></div>
+
+            <!-- 地圖右上角：自動縮放檢視全路線按鈕 -->
+            <button
+              id="fit-route-btn"
+              type="button"
+              class="absolute top-4 right-4 z-[400] inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-snow/95 hover:bg-forest-900 hover:text-white text-forest-900 text-xs font-medium shadow-md border border-sand-200 backdrop-blur-sm transition-colors"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/>
+              </svg>
+              <span data-i18n="planner.fitBtn">檢視完整路線</span>
+            </button>
+
+            <!-- 地圖左下角：精簡圖例 -->
+            <div class="absolute bottom-4 left-4 z-[400] flex items-center gap-4 px-4 py-2 rounded-full bg-snow/92 backdrop-blur-md border border-sand-200/90 shadow-sm text-xs text-ink">
+              <span class="inline-flex items-center gap-1.5">
+                <span class="w-3.5 h-3.5 rounded-full bg-forest-900 border-2 border-white shadow-sm inline-block"></span>
+                <span data-i18n="planner.legendSelected">已選景點（依序編號）</span>
+              </span>
+              <span class="inline-flex items-center gap-1.5">
+                <span class="w-3 h-3 rounded-full bg-white border-2 border-glacier-400 inline-block"></span>
+                <span data-i18n="planner.legendAvailable">點擊可查看／加入</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================
+         5. 紐西蘭文化與故事專欄（Location & Māori Stories）
+    ========================================================== -->
+    <section id="stories" class="py-24 sm:py-32 bg-snow relative">
+      <div class="max-w-7xl mx-auto px-5 sm:px-8">
+        <!-- 區塊標題 -->
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-14 reveal">
+          <div class="max-w-2xl">
+            <span class="inline-block text-xs font-semibold tracking-[0.25em] uppercase text-glacier-600 mb-3">
+              Location &amp; Māori Stories
+            </span>
+            <h2 data-i18n="stories.title" class="font-serif text-3xl sm:text-4xl font-semibold text-forest-900">
+              風景之所以動人，是因為它藏著故事
+            </h2>
+          </div>
+          <p data-i18n="stories.subtitle" class="text-sm sm:text-base text-ink-muted max-w-md">
+            在出發之前，先跟著 Seekai 的文字走進南島的公路史詩與毛利神話。點擊卡片即可展開閱讀完整專欄。
+          </p>
+        </div>
+
+        <!-- 2 欄雜誌感故事卡片 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
+          <!-- 故事 1：8 號公路（SH8）的故事 -->
+          <article class="reveal group bg-sand-100/75 rounded-3xl overflow-hidden border border-sand-200 shadow-soft hover:shadow-card-hover transition-all duration-300 flex flex-col">
+            <div class="relative aspect-[16/9] overflow-hidden">
+              <!-- [可替換照片] 8 號公路專欄配圖：建議放林迪斯隘口、麥肯齊盆地或 SH8 延伸向雪山的公路照 -->
+              <img
+                src="https://images.unsplash.com/photo-1531804055935-76f44d7c3621?auto=format&fit=crop&w=1200&q=80"
+                alt="紐西蘭南島 8 號公路穿越金色山谷與雪山"
+                class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+              />
+              <div class="absolute inset-0 bg-gradient-to-t from-forest-950/60 via-transparent to-transparent"></div>
+              <span data-i18n="stories.s1.tag" class="absolute top-5 left-5 px-3.5 py-1 rounded-full text-xs tracking-widest uppercase bg-forest-900/85 text-sand-100 backdrop-blur-sm">
+                公路紀行 · State Highway 8
+              </span>
+            </div>
+
+            <div class="p-8 sm:p-10 flex flex-col flex-1">
+              <h3 data-i18n="stories.s1.title" class="font-serif text-2xl sm:text-[1.65rem] font-semibold text-forest-900 leading-snug">
+                8 號公路（SH8）的故事：一條串聯牧羊傳奇、冰川湖與淘金歲月的脊樑
+              </h3>
+              <p data-i18n="stories.s1.excerpt" class="mt-4 text-ink-muted text-sm sm:text-base leading-relaxed flex-1">
+                從蒂馬魯與費爾利出發，翻過伯克斯隘口（Burkes Pass）的那一刻，世界彷彿忽然打開了畫框——無邊的金色 tussock 草坡、神祕牧羊人詹姆斯・麥肯齊的傳說、如牛奶般泛藍的冰川湖，以及一路延伸至林迪斯隘口與中奧塔哥果園的壯闊轉折……
+              </p>
+              <div class="mt-7 flex items-center justify-between pt-5 border-t border-sand-200">
+                <span data-i18n="stories.readTime" class="text-xs tracking-wider text-ink-muted">閱讀時間約 3 分鐘</span>
+                <button
+                  type="button"
+                  data-story="sh8"
+                  class="open-story-btn inline-flex items-center gap-2 text-sm font-medium text-forest-900 hover:text-glacier-700 transition-colors group/btn"
+                >
+                  <span data-i18n="stories.readMore">展開閱讀完整故事</span>
+                  <span class="w-8 h-8 rounded-full bg-forest-900 text-white flex items-center justify-center group-hover/btn:bg-glacier-600 transition-colors">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+                    </svg>
+                  </span>
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <!-- 故事 2：毛利神話與自然精神 -->
+          <article class="reveal group bg-sand-100/75 rounded-3xl overflow-hidden border border-sand-200 shadow-soft hover:shadow-card-hover transition-all duration-300 flex flex-col">
+            <div class="relative aspect-[16/9] overflow-hidden">
+              <!-- [可替換照片] 毛利文化專欄配圖：建議放庫克山雲霧、原始山毛櫸森林或毛利雕刻意象照片 -->
+              <img
+                src="https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1200&q=80"
+                alt="紐西蘭長白雲之鄉：毛利神話中的雲霧山巒與原始森林"
+                class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+              />
+              <div class="absolute inset-0 bg-gradient-to-t from-forest-950/60 via-transparent to-transparent"></div>
+              <span data-i18n="stories.s2.tag" class="absolute top-5 left-5 px-3.5 py-1 rounded-full text-xs tracking-widest uppercase bg-glacier-700/90 text-white backdrop-blur-sm">
+                文化哲思 · Te Ao Māori
+              </span>
+            </div>
+
+            <div class="p-8 sm:p-10 flex flex-col flex-1">
+              <h3 data-i18n="stories.s2.title" class="font-serif text-2xl sm:text-[1.65rem] font-semibold text-forest-900 leading-snug">
+                毛利神話與自然精神：從「穿雲之峰 Aoraki」到守護大地的 Kaitiakitanga
+              </h3>
+              <p data-i18n="stories.s2.excerpt" class="mt-4 text-ink-muted text-sm sm:text-base leading-relaxed flex-1">
+                在毛利人的世界觀裡，紐西蘭南島是一艘化作岩石的古老獨木舟（Te Waka o Aoraki），而最高峰庫克山則是天父之子 Aoraki 凝望大地的身影。當我們學會以「守護者（Kaitiaki）」而非征服者的眼光踏上這片土地，旅行便有了截然不同的敬畏與感動……
+              </p>
+              <div class="mt-7 flex items-center justify-between pt-5 border-t border-sand-200">
+                <span data-i18n="stories.readTime" class="text-xs tracking-wider text-ink-muted">閱讀時間約 3 分鐘</span>
+                <button
+                  type="button"
+                  data-story="maori"
+                  class="open-story-btn inline-flex items-center gap-2 text-sm font-medium text-forest-900 hover:text-glacier-700 transition-colors group/btn"
+                >
+                  <span data-i18n="stories.readMore">展開閱讀完整故事</span>
+                  <span class="w-8 h-8 rounded-full bg-forest-900 text-white flex items-center justify-center group-hover/btn:bg-glacier-600 transition-colors">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+                    </svg>
+                  </span>
+                </button>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================
+         6. 線上預約與諮詢區塊（Google Calendar Appointment Schedule）
+    ========================================================== -->
+    <section id="booking" class="py-24 sm:py-32 bg-forest-900 text-white relative overflow-hidden">
+      <!-- 細緻裝飾光暈 -->
+      <div class="absolute top-0 left-1/4 w-96 h-96 rounded-full bg-glacier-600/15 blur-3xl pointer-events-none"></div>
+      <div class="absolute bottom-0 right-1/4 w-96 h-96 rounded-full bg-sand-300/10 blur-3xl pointer-events-none"></div>
+
+      <div class="max-w-7xl mx-auto px-5 sm:px-8 relative z-10">
+        <!-- 預約區標題 -->
+        <div class="max-w-3xl mx-auto text-center mb-14 reveal">
+          <span class="inline-flex items-center gap-2 text-xs font-semibold tracking-[0.22em] uppercase text-glacier-400 mb-3">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span data-i18n="booking.badge">Google Calendar · Google Meet 15 分鐘免費線上諮詢</span>
+          </span>
+          <h2 data-i18n="booking.title" class="font-serif text-3xl sm:text-4xl font-semibold text-white">
+            開始規劃你的專屬紐西蘭旅程
+          </h2>
+          <p data-i18n="booking.subtitle" class="mt-4 text-sand-100/85 text-base sm:text-lg font-light">
+            選擇一個你方便的時間，我們透過 Google Meet 進行 15 分鐘免費線上諮詢，聊聊你的旅遊想法。
+          </p>
+        </div>
+
+        <!-- 主體左右雙欄：左側 35%（專屬路線摘要卡片＋聯繫方式） / 右側 65%（Google Calendar 預約時段內嵌視窗） -->
+        <div class="grid grid-cols-1 lg:grid-cols-[35fr_65fr] gap-8 items-start">
+          <!-- 左側（約 35% 寬度）：行程需求攜帶卡片與備用聯繫方式 -->
+          <div class="reveal space-y-6">
+            <!-- 動態帶入區：您的專屬路線摘要卡片 -->
+            <div
+              id="selected-route-banner"
+              class="rounded-3xl bg-forest-800/85 backdrop-blur-md border border-glacier-400/40 p-6 shadow-xl transition-all duration-300"
+            >
+              <!-- 狀態 A：尚未從上方帶入路線時的引導提示 -->
+              <div id="selected-route-empty" class="space-y-3">
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-sand-300"></span>
+                  <span data-i18n="booking.emptyTag" class="text-xs font-semibold tracking-[0.18em] uppercase text-sand-200">
+                    行程需求攜帶卡片
+                  </span>
+                </div>
+                <h3 data-i18n="booking.emptyTitle" class="font-serif text-lg font-semibold text-white">
+                  還沒帶入想去的南島路線嗎？
+                </h3>
+                <p data-i18n="booking.emptyDesc" class="text-xs text-sand-100/80 leading-relaxed">
+                  您可以先在上方互動地圖或三步排程器勾選想去的景點，再點擊「請 Seekai 幫我優化／報價」，路線會自動出現在這裡方便一鍵貼進右側預約表單。
+                </p>
+                <div class="pt-1 flex flex-wrap gap-2">
+                  <button
+                    id="sync-current-planner-btn"
+                    data-i18n="booking.syncBtn"
+                    type="button"
+                    class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-glacier-600 hover:bg-glacier-700 text-white text-xs font-medium transition-colors"
+                  >
+                    帶入目前地圖排好的路線
+                  </button>
+                  <a
+                    href="#route-planner"
+                    data-i18n="booking.backMap"
+                    class="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/18 text-sand-100 text-xs transition-colors"
+                  >
+                    回到地圖規劃
+                  </a>
+                </div>
+              </div>
+
+              <!-- 狀態 B：已動態帶入專屬路線後的完整摘要卡片 -->
+              <div id="selected-route-filled" class="hidden space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/12">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                    <span data-i18n="booking.filledTag" class="text-xs font-semibold tracking-[0.16em] uppercase text-glacier-100">
+                      您的專屬路線摘要卡片
+                    </span>
+                  </div>
+                  <button id="clear-route-btn" data-i18n="booking.clearBtn" type="button" class="text-xs underline text-sand-200/75 hover:text-white">
+                    清除
+                  </button>
+                </div>
+
+                <!-- 路線統計標籤 -->
+                <div id="selected-route-meta" class="hidden text-xs px-3 py-1.5 rounded-xl bg-glacier-600/25 border border-glacier-400/30 text-glacier-100 leading-relaxed"></div>
+
+                <!-- 完整排序路線 -->
+                <div class="rounded-2xl bg-forest-950/50 border border-white/10 p-4 space-y-2.5">
+                  <p id="selected-route-name" class="text-sm sm:text-base font-medium text-white leading-relaxed"></p>
+                  <ul id="selected-route-segments" class="hidden pt-2 border-t border-white/10 space-y-1 text-[11px] text-sand-200/80 max-h-28 overflow-y-auto pr-1"></ul>
+                </div>
+
+                <!-- 一鍵複製按鈕（貼到右側 Google Calendar 預約表單） -->
+                <button
+                  id="copy-route-btn"
+                  type="button"
+                  class="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-glacier-600 hover:bg-glacier-700 text-white text-xs sm:text-sm font-medium tracking-wide shadow-md transition-all duration-200 hover:-translate-y-0.5"
+                >
+                  <span data-i18n="booking.copyRouteBtn">📋 一鍵複製路線（貼到右側預約表單）</span>
+                </button>
+
+                <div class="flex items-center justify-between text-[11px] text-sand-200/75">
+                  <span data-i18n="booking.pasteHint">貼進右側預約表單「備註欄」即可</span>
+                  <a href="#route-planner" data-i18n="booking.editMap" class="underline hover:text-white">修改地圖景點</a>
+                </div>
+              </div>
+            </div>
+
+            <!-- 備用直接聯繫方式卡片（WhatsApp / WeChat / Email） -->
+            <div class="bg-forest-800/60 backdrop-blur-md rounded-3xl p-6 sm:p-7 border border-white/12">
+              <h3 data-i18n="booking.contactTitle" class="font-serif text-xl font-semibold text-white">
+                或透過以下方式直接聯繫我
+              </h3>
+              <p data-i18n="booking.contactDesc" class="mt-2 text-xs sm:text-sm text-sand-100/80 leading-relaxed">
+                若右側沒有合適時段，歡迎直接留言告知出發月份與人數，我會在紐西蘭工作時間 24 小時內回覆。
+              </p>
+
+              <!-- 聯絡方式清單（請替換為您真實的聯絡資訊） -->
+              <div class="mt-6 space-y-3.5">
+                <!-- [可替換] WhatsApp 號碼與連結 -->
+                <a
+                  href="https://wa.me/64210000000"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="flex items-center gap-3.5 p-3.5 rounded-2xl bg-white/8 hover:bg-white/14 border border-white/10 transition-all duration-300 group"
+                >
+                  <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                    </svg>
+                  </div>
+                  <div class="min-w-0">
+                    <p class="text-[11px] uppercase tracking-widest text-sand-200/80">WhatsApp</p>
+                    <!-- [可替換] 請改為您的紐西蘭 WhatsApp 號碼 -->
+                    <p class="text-sm font-medium text-white truncate mt-0.5">+64 21 000 0000</p>
+                  </div>
+                </a>
+
+                <!-- [可替換] WeChat ID（含一鍵複製功能） -->
+                <button
+                  type="button"
+                  data-copy="seekai_exploreNZ"
+                  class="copy-btn w-full text-left flex items-center justify-between gap-3.5 p-3.5 rounded-2xl bg-white/8 hover:bg-white/14 border border-white/10 transition-all duration-300 group"
+                >
+                  <div class="flex items-center gap-3.5 min-w-0">
+                    <div class="w-10 h-10 rounded-xl bg-glacier-400/20 text-glacier-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 10h.01M12 10h.01M16 10h.01"/>
+                        <path d="M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 0 1-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8Z"/>
+                      </svg>
+                    </div>
+                    <div class="min-w-0">
+                      <p data-i18n="booking.wechatLabel" class="text-[11px] uppercase tracking-widest text-sand-200/80">WeChat 微信</p>
+                      <!-- [可替換] 請改為您的 WeChat ID -->
+                      <p class="text-sm font-medium text-white truncate mt-0.5">seekai_exploreNZ</p>
+                    </div>
+                  </div>
+                  <span data-i18n="booking.copyBtn" class="text-xs px-2.5 py-1 rounded-full bg-white/10 text-sand-100 shrink-0">複製</span>
+                </button>
+
+                <!-- [可替換] Email 聯絡信箱 -->
+                <a
+                  href="mailto:hello@seekai-explorenz.com"
+                  class="flex items-center gap-3.5 p-3.5 rounded-2xl bg-white/8 hover:bg-white/14 border border-white/10 transition-all duration-300 group"
+                >
+                  <div class="w-10 h-10 rounded-xl bg-sand-300/20 text-sand-200 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <rect width="20" height="16" x="2" y="4" rx="2"/>
+                      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+                    </svg>
+                  </div>
+                  <div class="min-w-0">
+                    <p class="text-[11px] uppercase tracking-widest text-sand-200/80">Email</p>
+                    <!-- [可替換] 請改為您的聯絡信箱 -->
+                    <p class="text-sm font-medium text-white truncate mt-0.5">hello@seekai-explorenz.com</p>
+                  </div>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- 右側（約 65% 寬度）：Google Calendar 預約時段內嵌視窗卡片 -->
+          <div class="reveal bg-snow-pure text-ink rounded-3xl shadow-2xl border border-white/15 overflow-hidden">
+            <!-- 白色卡片頂部資訊條 -->
+            <div class="flex flex-wrap items-center justify-between gap-2 px-6 py-4 bg-snow border-b border-sand-200/80">
+              <div class="flex items-center gap-2.5">
+                <span class="w-8 h-8 rounded-xl bg-glacier-100 text-glacier-700 flex items-center justify-center">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/>
+                  </svg>
+                </span>
+                <div>
+                  <p data-i18n="booking.gcalBarTitle" class="text-sm font-semibold text-forest-900 leading-tight">Google Calendar 預約時段</p>
+                  <p data-i18n="booking.gcalBarSub" class="text-[11px] text-ink-muted">預約成功後將自動寄送 Google Meet 視訊連結</p>
+                </div>
+              </div>
+              <span class="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full bg-forest-100 text-forest-900 font-medium">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                <span data-i18n="booking.tzBadge">自動換算您的當地時區</span>
+              </span>
+            </div>
+
+            <!-- 650px Google Calendar 內嵌容器 -->
+            <div class="relative w-full h-[650px] bg-snow-pure">
+              <!-- ================= 在此貼上你的 Google Calendar 預約時段 iframe 網址 ================= -->
+              <!-- 操作方式：至 Google Calendar 建立「預約時段」➔ 點擊「分享」➔ 選「網站嵌入」➔ 複製 iframe 裡的 src 網址，貼到下方 src="" 中即可自動啟用！ -->
+              <!-- 網址格式範例：https://calendar.google.com/calendar/appointments/schedules/AcZssZ0xxxxxxxxxxxx?gv=true -->
+              <iframe
+                id="gcal-booking-iframe"
+                src=""
+                style="border: 0;"
+                width="100%"
+                height="650"
+                frameborder="0"
+                loading="lazy"
+                title="seekai.exploreNZ Google Calendar 預約時段"
+                class="hidden w-full h-[650px]"
+              ></iframe>
+
+              <!-- Google Calendar 預約時段預覽佔位畫面（當上方 src 填入真實預約連結後會自動隱藏） -->
+              <div id="gcal-placeholder-preview" class="h-[650px] p-6 sm:p-8 flex flex-col justify-between bg-gradient-to-br from-snow via-snow-pure to-glacier-100/35 relative overflow-hidden">
+                <!-- 模擬 Google Calendar 預約介面背景預覽（視覺引導） -->
+                <div class="grid grid-cols-1 sm:grid-cols-12 gap-6 opacity-90">
+                  <!-- 左側模擬諮詢資訊 -->
+                  <div class="sm:col-span-5 space-y-4 sm:border-r sm:border-sand-200/80 sm:pr-5">
+                    <div class="flex items-center gap-3">
+                      <div class="w-11 h-11 rounded-full bg-forest-900 text-white font-display font-semibold text-lg flex items-center justify-center">
+                        S
+                      </div>
+                      <div>
+                        <p class="text-xs text-ink-muted">seekai.exploreNZ</p>
+                        <p data-i18n="booking.mockTitle" class="font-serif text-base font-semibold text-forest-900">15 分鐘南島行程諮詢</p>
+                      </div>
+                    </div>
+
+                    <div class="space-y-2.5 text-xs text-ink-muted pt-1">
+                      <div class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-glacier-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                        <span data-i18n="booking.mockItem1">15 分鐘免費一對一線上對談</span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/>
+                        </svg>
+                        <span data-i18n="booking.mockItem2">Google Meet 視訊會議（自動寄送連結）</span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-sand-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <circle cx="12" cy="12" r="10"/><line x1="2" x2="22" y1="12" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                        </svg>
+                        <span data-i18n="booking.mockItem3">紐西蘭時間（NZDT / NZST）自動轉換</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 右側模擬可預約時段格子 -->
+                  <div class="sm:col-span-7 space-y-3">
+                    <div class="flex items-center justify-between">
+                      <span data-i18n="booking.mockSelect" class="text-xs font-semibold text-forest-900">選擇預約日期與時段（預覽示意）</span>
+                      <span class="text-[11px] text-glacier-700 bg-glacier-100 px-2.5 py-0.5 rounded-full">Google Calendar</span>
+                    </div>
+                    <div class="grid grid-cols-5 gap-2 text-center text-xs">
+                      <div class="py-2 rounded-xl bg-sand-50 border border-sand-200/80 text-ink-muted">
+                        <p data-i18n="booking.mon" class="text-[10px]">週一</p>
+                        <p class="font-semibold text-forest-900 mt-0.5">25</p>
+                      </div>
+                      <div class="py-2 rounded-xl bg-forest-900 text-white shadow-sm">
+                        <p data-i18n="booking.tue" class="text-[10px] opacity-80">週二</p>
+                        <p class="font-semibold mt-0.5">26</p>
+                      </div>
+                      <div class="py-2 rounded-xl bg-sand-50 border border-sand-200/80 text-ink-muted">
+                        <p data-i18n="booking.wed" class="text-[10px]">週三</p>
+                        <p class="font-semibold text-forest-900 mt-0.5">27</p>
+                      </div>
+                      <div class="py-2 rounded-xl bg-sand-50 border border-sand-200/80 text-ink-muted">
+                        <p data-i18n="booking.thu" class="text-[10px]">週四</p>
+                        <p class="font-semibold text-forest-900 mt-0.5">28</p>
+                      </div>
+                      <div class="py-2 rounded-xl bg-sand-50 border border-sand-200/80 text-ink-muted">
+                        <p data-i18n="booking.fri" class="text-[10px]">週五</p>
+                        <p class="font-semibold text-forest-900 mt-0.5">29</p>
+                      </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 pt-1">
+                      <span class="py-2 text-center rounded-xl border border-glacier-400/50 bg-white text-xs font-medium text-forest-900">10:00 AM</span>
+                      <span class="py-2 text-center rounded-xl border border-glacier-600 bg-glacier-100/70 text-xs font-semibold text-glacier-700">02:00 PM</span>
+                      <span class="py-2 text-center rounded-xl border border-glacier-400/50 bg-white text-xs font-medium text-forest-900">07:30 PM</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 中央清楚設定說明提示卡 -->
+                <div class="my-auto rounded-2xl bg-snow-pure/95 border border-dashed border-glacier-400 p-6 sm:p-7 text-center shadow-soft">
+                  <div class="w-12 h-12 mx-auto rounded-2xl bg-glacier-100 text-glacier-700 flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="m9 16 2 2 4-4"/>
+                    </svg>
+                  </div>
+                  <h3 data-i18n="booking.phTitle" class="font-serif text-lg sm:text-xl font-semibold text-forest-900">
+                    Google Calendar 預約時段預覽佔位畫面
+                  </h3>
+                  <p data-i18n-html="booking.phDesc" class="mt-2.5 text-sm text-ink-muted max-w-lg mx-auto leading-relaxed">
+                    請將 Google Calendar 取得的預約連結填入程式碼的 <code class="px-1.5 py-0.5 rounded bg-sand-200/80 text-forest-900 text-xs font-semibold">src</code> 欄位，即可在此直接顯示可預約日曆。
+                  </p>
+                  <p data-i18n-html="booking.phHint" class="mt-2 text-xs text-ink-muted/85">
+                    搜尋註解 <strong class="text-forest-900">「在此貼上你的 Google Calendar 預約時段 iframe 網址」</strong> 即可快速完成設定
+                  </p>
+                </div>
+
+                <!-- 底部小提醒 -->
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-sand-200/80 text-[11px] text-ink-muted">
+                  <span data-i18n="booking.phFoot1">Google Calendar Appointment Schedule 內嵌高度：650px</span>
+                  <span data-i18n="booking.phFoot2">免付費第三方預約平台・原生整合 Google Meet</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- =========================================================
+       7. 頁尾（Footer）
+  ========================================================== -->
+  <footer class="bg-forest-950 text-sand-200/80 border-t border-white/10">
+    <div class="max-w-7xl mx-auto px-5 sm:px-8 py-14">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-8">
+        <!-- 品牌資訊 -->
+        <div class="text-center md:text-left">
+          <a href="#top" class="font-display text-2xl font-semibold tracking-wide text-white">
+            seekai<span class="text-glacier-400">.</span>exploreNZ
+          </a>
+          <p data-i18n="footer.tagline" class="text-xs sm:text-sm text-sand-200/65 mt-2 tracking-wider">
+            紐西蘭南島在地華語私人導遊・客製化包車・文化深度探索
+          </p>
+        </div>
+
+        <!-- 社群媒體圖示連結（請替換 href 為您的真實社群網址） -->
+        <div class="flex items-center gap-3.5">
+          <!-- Instagram -->
+          <a href="https://instagram.com/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" class="w-10 h-10 rounded-full border border-white/15 bg-white/5 hover:bg-glacier-600 hover:border-glacier-600 text-white flex items-center justify-center transition-all duration-300 hover:-translate-y-0.5">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/>
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+              <line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>
+            </svg>
+          </a>
+          <!-- Facebook -->
+          <a href="https://facebook.com/" target="_blank" rel="noopener noreferrer" aria-label="Facebook" class="w-10 h-10 rounded-full border border-white/15 bg-white/5 hover:bg-glacier-600 hover:border-glacier-600 text-white flex items-center justify-center transition-all duration-300 hover:-translate-y-0.5">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+            </svg>
+          </a>
+          <!-- YouTube -->
+          <a href="https://youtube.com/" target="_blank" rel="noopener noreferrer" aria-label="YouTube" class="w-10 h-10 rounded-full border border-white/15 bg-white/5 hover:bg-glacier-600 hover:border-glacier-600 text-white flex items-center justify-center transition-all duration-300 hover:-translate-y-0.5">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"/>
+              <path d="m10 15 5-3-5-3z"/>
+            </svg>
+          </a>
+          <!-- Email -->
+          <a href="mailto:hello@seekai-explorenz.com" aria-label="Email" class="w-10 h-10 rounded-full border border-white/15 bg-white/5 hover:bg-glacier-600 hover:border-glacier-600 text-white flex items-center justify-center transition-all duration-300 hover:-translate-y-0.5">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="20" height="16" x="2" y="4" rx="2"/>
+              <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+
+      <!-- 版權宣告 -->
+      <div class="mt-10 pt-7 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-sand-200/55">
+        <p>© 2026 seekai.exploreNZ. All rights reserved.</p>
+        <div class="flex items-center gap-6">
+          <a href="#about" data-i18n="nav.about" class="hover:text-white transition-colors">關於 Seekai</a>
+          <a href="#routes" data-i18n="footer.routes" class="hover:text-white transition-colors">精選路線</a>
+          <a href="#route-planner" data-i18n="footer.map" class="hover:text-white transition-colors">路線地圖</a>
+          <a href="#stories" data-i18n="nav.stories" class="hover:text-white transition-colors">文化故事</a>
+          <a href="#booking" data-i18n="footer.book" class="hover:text-white transition-colors">預約諮詢</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- =========================================================
+       互動彈窗（Story Reading Modal）
+  ========================================================== -->
+  <div
+    id="story-modal"
+    class="fixed inset-0 z-[60] hidden items-center justify-center p-4 sm:p-6"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="modal-title"
+  >
+    <!-- 半透明背景遮罩 -->
+    <div id="modal-backdrop" class="modal-backdrop fixed inset-0 bg-forest-950/75 backdrop-blur-sm opacity-0"></div>
+
+    <!-- 彈窗主體 -->
+    <div id="modal-panel" class="modal-panel relative z-10 w-full max-w-2xl max-h-[88vh] bg-snow rounded-3xl shadow-2xl overflow-hidden flex flex-col opacity-0 translate-y-4 scale-95">
+      <!-- 彈窗頂部 -->
+      <div class="flex items-center justify-between px-6 sm:px-8 py-5 bg-sand-100/90 border-b border-sand-200">
+        <span id="modal-tag" class="text-xs font-semibold tracking-[0.2em] uppercase text-glacier-700"></span>
+        <button id="close-modal-btn" type="button" aria-label="關閉故事視窗" class="w-9 h-9 rounded-full bg-white hover:bg-forest-900 hover:text-white text-forest-900 flex items-center justify-center shadow-sm transition-colors">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M18 6 6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- 彈窗內文（可滾動） -->
+      <div class="px-6 sm:px-9 py-7 overflow-y-auto space-y-5">
+        <h3 id="modal-title" class="font-serif text-2xl sm:text-3xl font-semibold text-forest-900 leading-snug"></h3>
+        <div id="modal-body" class="space-y-4 text-ink-muted text-[0.98rem] sm:text-base leading-relaxed"></div>
+
+        <!-- 彈窗底部互動引導 -->
+        <div class="mt-8 pt-6 border-t border-sand-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <p data-i18n="modal.ctaPrompt" class="text-sm text-forest-900 font-medium">想在旅途中親耳聽更多南島私房故事嗎？</p>
+          <a href="#booking" id="modal-booking-link" data-i18n="modal.ctaBtn" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-forest-900 hover:bg-forest-800 text-white text-sm font-medium transition-colors shrink-0">
+            預約免費行程諮詢
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 複製成功提示 Toast -->
+  <div id="copy-toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] px-5 py-2.5 rounded-full bg-forest-950 text-white text-sm shadow-xl border border-white/15 opacity-0 pointer-events-none transition-all duration-300 translate-y-3">
+    已複製到剪貼簿
+  </div>
+
+  <!-- =========================================================
+       內嵌 JavaScript：導覽列動態切換、滾動顯現、路線連動與故事彈窗
+  ========================================================== -->
+  <script>
+    (function () {
+      // =========================================================
+      // 0. 繁體中文 / English 雙語詞庫與語言狀態管理
+      // =========================================================
+      const I18N = {
+        zh: {
+          pageTitle: 'seekai.exploreNZ | 紐西蘭南島在地華語私人導遊與客製化包車',
+          'nav.about': '關於 Seekai',
+          'nav.routes': '南島精選路線',
+          'nav.map': '路線規劃地圖',
+          'nav.stories': '文化故事',
+          'nav.book': '立即預約',
+          'nav.bookMobile': '立即預約 15 分鐘免費諮詢',
+          'hero.badge': 'AOTEAROA SOUTH ISLAND · 紐西蘭南島在地私人導遊',
+          'hero.title': '跟著在地華語導遊 Seekai，<br class="hidden sm:inline" />走進明信片背後的真實紐西蘭',
+          'hero.subtitle': '南島客製化包車・私房路線規劃・毛利文化深度導覽',
+          'hero.ctaPrimary': '預約 15 分鐘免費行程諮詢',
+          'hero.ctaSecondary': '探索南島精選路線',
+          'hero.stat1': '獨立客製不併團',
+          'hero.stat2': '南島全季深度熟路',
+          'hero.stat3': '在地華語文化領路',
+          'about.title': '不只是載您看風景的司機，<br />更是陪您讀懂南島的在地朋友',
+          'about.p1': '長年旅居並深耕紐西蘭南島，我走過無數次清晨薄霧籠罩的普卡基湖、冬日飄雪的林迪斯隘口，也熟悉這片土地四季交替時的每一次呼吸。對我而言，紐西蘭最動人的時刻，往往不在觀光團匆匆打卡的 15 分鐘裡，而是在轉過某個山彎後，為一道突然灑落的冰川光束而停下車的那份餘裕。',
+          'about.p2': '透過 <strong class="text-forest-900 font-medium">seekai.exploreNZ</strong>，我希望用母語的溫度與多年在地生活累積的視野，為每一組家庭、情侶與好友量身打造專屬旅程——讓您不必煩惱右駕山路與天氣變數，真正沉澱下來，聽見山谷的風、毛利古老的傳說，以及屬於您自己的紐西蘭記憶。',
+          'about.quote': '「旅行不該是追趕清單，而是讓風景有機會走進心裡。」',
+          'about.card1.tag': '01 · 安全省心',
+          'about.card1.title': '熟悉南島路況與季節變化',
+          'about.card1.desc': '紐西蘭南島地形多變，冬季高山暗冰、強側風與單線橋樑皆需豐富經驗。由熟悉各條國道與即時天氣預報的在地導遊掌舵，讓您徹底告別右駕壓力，安心享受沿途純淨風光。',
+          'about.card2.tag': '02 · 深度人文',
+          'about.card2.title': '有溫度的文化說書人',
+          'about.card2.desc': '每一座雪山與湖泊都有它的名字與靈魂。旅途中我會與您分享毛利神話、冰川地質演變、十九世紀淘金歷史與紐西蘭人的日常哲學，讓壯麗景色成為立體而動人的故事。',
+          'about.card3.tag': '03 · 專屬餘裕',
+          'about.card3.title': '彈性不趕路的私人節奏',
+          'about.card3.desc': '無須配合大團作息，也不會被催促上車。想在湖畔小鎮多喝一杯現烘咖啡、在隱密觀景台等待雲霧散開，或依照長輩與孩子的體力彈性微調行程，每一刻都由您自在掌控。',
+          'routes.title': '南島精選路線推薦',
+          'routes.subtitle': '以下三條經典軸線皆可獨立安排，或自由串聯組合成 7 至 14 天的南島全景私房行程，並依季節與您的步調完全客製。',
+          'routes.inquire': '諮詢此路線',
+          'routes.r1.days': '建議 4–5 天',
+          'routes.r1.title': '經典中線冰川星空之旅',
+          'routes.r1.chain': '基督城 ➔ 蒂卡波湖（觀星） ➔ 普卡基湖 ➔ 庫克山國家公園',
+          'routes.r1.b1': '深入全球暗空保護區，在好牧羊人教堂旁仰望南半球璀璨銀河。',
+          'routes.r1.b2': '沿著牛奶藍的普卡基湖品嚐高山冰川鮭魚，遠眺毛利聖山 Aoraki。',
+          'routes.r1.b3': '漫步庫克山谷與塔斯曼冰川觀景點，近距離感受萬年冰河氣勢。',
+          'routes.r1.booking': '經典中線冰川星空之旅（基督城 ➔ 蒂卡波湖 ➔ 普卡基湖 ➔ 庫克山）',
+          'routes.r2.days': '建議 4–6 天',
+          'routes.r2.title': '湖光山色與極限冒險線',
+          'routes.r2.chain': '瓦納卡 ➔ 克倫威爾 ➔ 箭鎮 ➔ 皇后鎮 ➔ 格萊諾基',
+          'routes.r2.b1': '慢遊悠閒湖畔小鎮瓦納卡，走訪克倫威爾果園與百年華人淘金聚落箭鎮。',
+          'routes.r2.b2': '在冒險之都皇后鎮依喜好安排高空跳傘、噴射快艇、纜車或酒莊微醺。',
+          'routes.r2.b3': '馳騁全球最美湖濱公路之一，探訪《魔戒》取景地格萊諾基與天堂鎮。',
+          'routes.r2.booking': '湖光山色與極限冒險線（瓦納卡 ➔ 克倫威爾 ➔ 箭鎮 ➔ 皇后鎮 ➔ 格萊諾基）',
+          'routes.r3.days': '建議 2–3 天',
+          'routes.r3.title': '世界遺產峽灣秘境線',
+          'routes.r3.chain': '皇后鎮 ➔ 蒂阿瑙 ➔ 米佛峽灣（沿途 17 大秘境停靠）',
+          'routes.r3.b1': '告別走馬看花的觀光巴士，深入 SH94 峽灣公路沿途精選 17 大秘境停靠點。',
+          'routes.r3.b2': '探訪鏡湖倒影、艾格靈頓山谷、荷馬隧道與高山鸚鵡 Kea 出沒地帶。',
+          'routes.r3.b3': '搭乘遊船巡航世界自然遺產米佛峽灣，在百米飛瀑與教冠峰下感受震撼。',
+          'routes.r3.booking': '世界遺產峽灣秘境線（皇后鎮 ➔ 蒂阿瑙 ➔ 米佛峽灣沿途 17 大秘境）',
+          'planner.eyebrow': 'Interactive Route Planner · 南島專屬自由行規劃',
+          'planner.title': '互動式南島客製化路線規劃地圖',
+          'planner.subtitle': '可一鍵套用紐西蘭南島經典主題路線，或從南島六大分區 24 個精選旅遊景點中自由加入專屬自由行；系統即時計算各段行車距離、預估車程時間與建議包車天數。',
+          'planner.themesHeading': '新西蘭南島經典主題路線（點選一鍵套用到地圖）',
+          'planner.themesHint': '套用後仍可自由增減任何景點',
+          'planner.t1.badge': '經典必走 · 7–8 天',
+          'planner.t1.count': '6 景點',
+          'planner.t1.title': '高山湖泊經典線',
+          'planner.t1.route': '基督城 ➔ 蒂卡波湖 ➔ 普卡基湖 ➔ 庫克山 ➔ 瓦納卡 ➔ 皇后鎮',
+          'planner.t2.badge': '冰川雨林 · 8–10 天',
+          'planner.t2.count': '6 景點',
+          'planner.t2.title': '西海岸冰川秘境線',
+          'planner.t2.route': '基督城 ➔ 亞瑟隘口 ➔ 霍基蒂卡 ➔ 法蘭茲約瑟夫 ➔ 瓦納卡 ➔ 皇后鎮',
+          'planner.t3.badge': '峽灣生態 · 7–9 天',
+          'planner.t3.count': '7 景點',
+          'planner.t3.title': '峽灣與南方景觀線',
+          'planner.t3.route': '皇后鎮 ➔ 格萊諾基 ➔ 蒂阿瑙 ➔ 米佛峽灣 ➔ 卡特林斯 ➔ 但尼丁 ➔ 奧瑪魯',
+          'planner.t4.badge': '賞鯨溫泉 · 5–6 天',
+          'planner.t4.count': '5 景點',
+          'planner.t4.title': '山海太平洋生態線',
+          'planner.t4.route': '凱庫拉 ➔ 漢默溫泉 ➔ 基督城 ➔ 阿卡羅阿 ➔ 蒂卡波湖',
+          'planner.step1': '選目的地',
+          'planner.step2': '智能排序',
+          'planner.step3': '分享／報價',
+          'planner.panelTitle': '三步自由行智能排程器',
+          'planner.btnReset': '重設範例',
+          'planner.btnAll': '全選',
+          'planner.btnClear': '清空',
+          'planner.searchPlaceholder': '搜尋南島景點（如：庫克山、Queenstown、冰川、企鵝）',
+          'planner.regCore': 'Seekai 核心 (13)',
+          'planner.regAll': '全部景點 (24)',
+          'planner.regNE': '北部與東岸',
+          'planner.regCentral': '中線冰川湖',
+          'planner.regLakes': '皇后鎮湖區',
+          'planner.regWest': '西海岸冰川',
+          'planner.regSouth': '峽灣與南部',
+          'planner.dirLabel': '動線排序方向：',
+          'planner.dirNS': '北 ➔ 南（順行）',
+          'planner.dirSN': '南 ➔ 北（逆行）',
+          'planner.metricSpots': '已選景點',
+          'planner.metricDist': '預估總距離',
+          'planner.metricTime': '純行車時間',
+          'planner.metricDays': '建議天數',
+          'planner.previewLabel': '您的專屬自由行路線與車程估算',
+          'planner.driveNote': '* 參考紐西蘭山區雙線道實際車速估算（純行車時間，建議另預留 20% 拍照與休息時間）。',
+          'planner.ctaBook': '請 Seekai 幫我優化／報價（預約諮詢）',
+          'planner.ctaShare': '保存並分享這份專屬行程連結',
+          'planner.fitBtn': '檢視完整路線',
+          'planner.legendSelected': '已選景點（依序編號）',
+          'planner.legendAvailable': '點擊可查看／加入',
+          'stories.title': '風景之所以動人，是因為它藏著故事',
+          'stories.subtitle': '在出發之前，先跟著 Seekai 的文字走進南島的公路史詩與毛利神話。點擊卡片即可展開閱讀完整專欄。',
+          'stories.s1.tag': '公路紀行 · State Highway 8',
+          'stories.s1.title': '8 號公路（SH8）的故事：一條串聯牧羊傳奇、冰川湖與淘金歲月的脊樑',
+          'stories.s1.excerpt': '從蒂馬魯與費爾利出發，翻過伯克斯隘口（Burkes Pass）的那一刻，世界彷彿忽然打開了畫框——無邊的金色 tussock 草坡、神祕牧羊人詹姆斯・麥肯齊的傳說、如牛奶般泛藍的冰川湖，以及一路延伸至林迪斯隘口與中奧塔哥果園的壯闊轉折……',
+          'stories.s2.tag': '文化哲思 · Te Ao Māori',
+          'stories.s2.title': '毛利神話與自然精神：從「穿雲之峰 Aoraki」到守護大地的 Kaitiakitanga',
+          'stories.s2.excerpt': '在毛利人的世界觀裡，紐西蘭南島是一艘化作岩石的古老獨木舟（Te Waka o Aoraki），而最高峰庫克山則是天父之子 Aoraki 凝望大地的身影。當我們學會以「守護者（Kaitiaki）」而非征服者的眼光踏上這片土地，旅行便有了截然不同的敬畏與感動……',
+          'stories.readTime': '閱讀時間約 3 分鐘',
+          'stories.readMore': '展開閱讀完整故事',
+          'booking.badge': 'Google Calendar · Google Meet 15 分鐘免費線上諮詢',
+          'booking.title': '開始規劃你的專屬紐西蘭旅程',
+          'booking.subtitle': '選擇一個你方便的時間，我們透過 Google Meet 進行 15 分鐘免費線上諮詢，聊聊你的旅遊想法。',
+          'booking.emptyTag': '行程需求攜帶卡片',
+          'booking.emptyTitle': '還沒帶入想去的南島路線嗎？',
+          'booking.emptyDesc': '您可以先在上方互動地圖或三步排程器勾選想去的景點，再點擊「請 Seekai 幫我優化／報價」，路線會自動出現在這裡方便一鍵貼進右側預約表單。',
+          'booking.syncBtn': '帶入目前地圖排好的路線',
+          'booking.backMap': '回到地圖規劃',
+          'booking.filledTag': '您的專屬路線摘要卡片',
+          'booking.clearBtn': '清除',
+          'booking.copyRouteBtn': '📋 一鍵複製路線（貼到右側預約表單）',
+          'booking.pasteHint': '貼進右側預約表單「備註欄」即可',
+          'booking.editMap': '修改地圖景點',
+          'booking.contactTitle': '或透過以下方式直接聯繫我',
+          'booking.contactDesc': '若右側沒有合適時段，歡迎直接留言告知出發月份與人數，我會在紐西蘭工作時間 24 小時內回覆。',
+          'booking.wechatLabel': 'WeChat 微信',
+          'booking.copyBtn': '複製',
+          'booking.gcalBarTitle': 'Google Calendar 預約時段',
+          'booking.gcalBarSub': '預約成功後將自動寄送 Google Meet 視訊連結',
+          'booking.tzBadge': '自動換算您的當地時區',
+          'booking.mockTitle': '15 分鐘南島行程諮詢',
+          'booking.mockItem1': '15 分鐘免費一對一線上對談',
+          'booking.mockItem2': 'Google Meet 視訊會議（自動寄送連結）',
+          'booking.mockItem3': '紐西蘭時間（NZDT / NZST）自動轉換',
+          'booking.mockSelect': '選擇預約日期與時段（預覽示意）',
+          'booking.mon': '週一',
+          'booking.tue': '週二',
+          'booking.wed': '週三',
+          'booking.thu': '週四',
+          'booking.fri': '週五',
+          'booking.phTitle': 'Google Calendar 預約時段預覽佔位畫面',
+          'booking.phDesc': '請將 Google Calendar 取得的預約連結填入程式碼的 <code class="px-1.5 py-0.5 rounded bg-sand-200/80 text-forest-900 text-xs font-semibold">src</code> 欄位，即可在此直接顯示可預約日曆。',
+          'booking.phHint': '搜尋註解 <strong class="text-forest-900">「在此貼上你的 Google Calendar 預約時段 iframe 網址」</strong> 即可快速完成設定',
+          'booking.phFoot1': 'Google Calendar Appointment Schedule 內嵌高度：650px',
+          'booking.phFoot2': '免付費第三方預約平台・原生整合 Google Meet',
+          'footer.tagline': '紐西蘭南島在地華語私人導遊・客製化包車・文化深度探索',
+          'footer.routes': '精選路線',
+          'footer.map': '路線地圖',
+          'footer.book': '預約諮詢',
+          'modal.ctaPrompt': '想在旅途中親耳聽更多南島私房故事嗎？',
+          'modal.ctaBtn': '預約免費行程諮詢'
+        },
+        en: {
+          pageTitle: 'seekai.exploreNZ | South Island Private Tour Guide & Custom Chauffeur',
+          'nav.about': 'About Seekai',
+          'nav.routes': 'Featured Routes',
+          'nav.map': 'Route Planner',
+          'nav.stories': 'Stories',
+          'nav.book': 'Book Now',
+          'nav.bookMobile': 'Book Free 15-Min Consultation',
+          'hero.badge': 'AOTEAROA SOUTH ISLAND · LOCAL PRIVATE TOUR GUIDE',
+          'hero.title': 'Journey Beyond the Postcard<br class="hidden sm:inline" />with Local South Island Guide Seekai',
+          'hero.subtitle': 'Bespoke Private Touring · Hidden-Gem Itineraries · Māori Cultural Storytelling',
+          'hero.ctaPrimary': 'Book a Free 15-Min Trip Consultation',
+          'hero.ctaSecondary': 'Explore South Island Routes',
+          'hero.stat1': '100% Private & Tailored',
+          'hero.stat2': 'All-Season Alpine Expertise',
+          'hero.stat3': 'Bilingual Cultural Guide',
+          'about.title': 'More Than a Driver —<br />Your Local Storyteller Across the South Island',
+          'about.p1': 'After years of living and guiding across New Zealand’s South Island, I know the quiet rhythm of these alpine roads—from mist lifting over Lake Pukaki at dawn to winter snow dusting the Lindis Pass. The most unforgettable moments in Aotearoa rarely happen on a rushed tour-bus schedule; they happen when you can pull over around a quiet mountain bend just as glacier light breaks through the clouds.',
+          'about.p2': 'Through <strong class="text-forest-900 font-medium">seekai.exploreNZ</strong>, I craft unhurried, deeply personal journeys for families, couples, and small groups in Mandarin and English. Leave the winding mountain passes and weather logistics to a local—so you can slow down, hear the wind through the valleys, and discover the Māori legends and living stories behind every landscape.',
+          'about.quote': '“Travel isn’t about rushing through a checklist—it’s about giving the landscape time to stay with you.”',
+          'about.card1.tag': '01 · Safe & Effortless',
+          'about.card1.title': 'All-Season Alpine Road Mastery',
+          'about.card1.desc': 'South Island highways bring rapid weather shifts, winter black ice, crosswinds, and single-lane bridges. Travel safely with a local guide who monitors live alpine forecasts so you can simply enjoy the view.',
+          'about.card2.tag': '02 · Cultural Depth',
+          'about.card2.title': 'Warm Cultural Storytelling',
+          'about.card2.desc': 'Every peak and glacial lake carries a name and spirit. Along the way, discover Māori creation legends, glacial geology, 19th-century gold-rush heritage, and genuine Kiwi everyday life.',
+          'about.card3.tag': '03 · Unhurried Pace',
+          'about.card3.title': 'Flexible Private Rhythm',
+          'about.card3.desc': 'No tour-bus wake-up calls or hurried stops. Linger over a lakeside flat white, wait for golden hour at a quiet lookout, or adapt the day effortlessly around elders and children.',
+          'routes.title': 'Featured South Island Routes',
+          'routes.subtitle': 'Each curated route can be enjoyed on its own or seamlessly combined into a 7–14 day bespoke South Island journey tailored to your travel season and pace.',
+          'routes.inquire': 'Inquire About This Route',
+          'routes.r1.days': '4–5 Days Suggested',
+          'routes.r1.title': 'Classic Glaciers & Dark Sky Route',
+          'routes.r1.chain': 'Christchurch ➔ Lake Tekapo (Stargazing) ➔ Lake Pukaki ➔ Aoraki / Mt Cook',
+          'routes.r1.b1': 'Gaze up at the Milky Way beneath the Aoraki Mackenzie International Dark Sky Reserve by the Church of the Good Shepherd.',
+          'routes.r1.b2': 'Savor fresh alpine glacial salmon along turquoise Lake Pukaki while admiring New Zealand’s highest peak, Aoraki.',
+          'routes.r1.b3': 'Walk scenic alpine valley trails and Tasman Glacier viewpoints for breathtaking close-up icefield panoramas.',
+          'routes.r1.booking': 'Classic Glaciers & Dark Sky Route (Christchurch ➔ Lake Tekapo ➔ Lake Pukaki ➔ Aoraki / Mt Cook)',
+          'routes.r2.days': '4–6 Days Suggested',
+          'routes.r2.title': 'Southern Lakes & Adventure Route',
+          'routes.r2.chain': 'Wānaka ➔ Cromwell ➔ Arrowtown ➔ Queenstown ➔ Glenorchy',
+          'routes.r2.b1': 'Unwind in lakeside Wānaka, taste orchard stone fruit in Cromwell, and wander Arrowtown’s historic gold-mining village.',
+          'routes.r2.b2': 'Customize Queenstown your way—from skydiving, jet boating, and skyline gondola rides to boutique Pinot Noir tastings.',
+          'routes.r2.b3': 'Drive one of the world’s most scenic lakeside roads to Glenorchy and Paradise, famed Lord of the Rings filming locations.',
+          'routes.r2.booking': 'Southern Lakes & Adventure Route (Wānaka ➔ Cromwell ➔ Arrowtown ➔ Queenstown ➔ Glenorchy)',
+          'routes.r3.days': '2–3 Days Suggested',
+          'routes.r3.title': 'UNESCO Fiordland & Milford Secret Route',
+          'routes.r3.chain': 'Queenstown ➔ Te Anau ➔ Milford Sound (17 Curated Scenic Stops)',
+          'routes.r3.b1': 'Skip rushed coach tours and explore 17 handpicked scenic stops along the dramatic SH94 Milford Road.',
+          'routes.r3.b2': 'Discover Mirror Lakes reflections, Eglinton Valley, Homer Tunnel, and cheeky native alpine Kea parrots.',
+          'routes.r3.b3': 'Cruise across UNESCO World Heritage Milford Sound beneath towering Mitre Peak and cascading waterfalls.',
+          'routes.r3.booking': 'UNESCO Fiordland & Milford Secret Route (Queenstown ➔ Te Anau ➔ Milford Sound & 17 Stops)',
+          'planner.eyebrow': 'Interactive Route Planner · Custom South Island Builder',
+          'planner.title': 'Interactive South Island Route Planner Map',
+          'planner.subtitle': 'Apply an official South Island themed itinerary in one click, or pick from 24 iconic destinations across 6 regions—with instant highway distances, pure driving times, and suggested days.',
+          'planner.themesHeading': 'Classic South Island Themed Itineraries (Click to Apply)',
+          'planner.themesHint': 'Customize any stop freely after applying',
+          'planner.t1.badge': 'Iconic · 7–8 Days',
+          'planner.t1.count': '6 Stops',
+          'planner.t1.title': 'Alpine Lakes Classic',
+          'planner.t1.route': 'Christchurch ➔ Tekapo ➔ Pukaki ➔ Mt Cook ➔ Wānaka ➔ Queenstown',
+          'planner.t2.badge': 'Glaciers · 8–10 Days',
+          'planner.t2.count': '6 Stops',
+          'planner.t2.title': 'West Coast Glacier Loop',
+          'planner.t2.route': 'Christchurch ➔ Arthur’s Pass ➔ Hokitika ➔ Franz Josef ➔ Wānaka ➔ Queenstown',
+          'planner.t3.badge': 'Fiordland · 7–9 Days',
+          'planner.t3.count': '7 Stops',
+          'planner.t3.title': 'Fiordland & Southern Scenic',
+          'planner.t3.route': 'Queenstown ➔ Glenorchy ➔ Te Anau ➔ Milford Sound ➔ Catlins ➔ Dunedin ➔ Oamaru',
+          'planner.t4.badge': 'Wildlife · 5–6 Days',
+          'planner.t4.count': '5 Stops',
+          'planner.t4.title': 'Alpine Pacific & Wildlife',
+          'planner.t4.route': 'Kaikōura ➔ Hanmer Springs ➔ Christchurch ➔ Akaroa ➔ Lake Tekapo',
+          'planner.step1': 'Pick Stops',
+          'planner.step2': 'Smart Order',
+          'planner.step3': 'Share / Quote',
+          'planner.panelTitle': '3-Step Smart Itinerary Planner',
+          'planner.btnReset': 'Reset',
+          'planner.btnAll': 'Select All',
+          'planner.btnClear': 'Clear',
+          'planner.searchPlaceholder': 'Search South Island spots (e.g. Mt Cook, Queenstown, Glacier, Penguin)',
+          'planner.regCore': 'Seekai Core (13)',
+          'planner.regAll': 'All Spots (24)',
+          'planner.regNE': 'North & East',
+          'planner.regCentral': 'Alpine Lakes',
+          'planner.regLakes': 'Queenstown Lakes',
+          'planner.regWest': 'West Coast',
+          'planner.regSouth': 'Fiordland & South',
+          'planner.dirLabel': 'Route Direction:',
+          'planner.dirNS': 'North ➔ South',
+          'planner.dirSN': 'South ➔ North',
+          'planner.metricSpots': 'Selected',
+          'planner.metricDist': 'Est. Distance',
+          'planner.metricTime': 'Drive Time',
+          'planner.metricDays': 'Est. Days',
+          'planner.previewLabel': 'Your Custom Route & Drive-Time Breakdown',
+          'planner.driveNote': '* Based on realistic NZ two-lane alpine highway speeds (non-stop driving; allow +20% for photo stops & breaks).',
+          'planner.ctaBook': 'Ask Seekai to Optimize / Quote (Book Call)',
+          'planner.ctaShare': 'Save & Share Custom Itinerary Link',
+          'planner.fitBtn': 'Fit Full Route',
+          'planner.legendSelected': 'Selected Stops (Ordered)',
+          'planner.legendAvailable': 'Click Pin to Explore / Add',
+          'stories.title': 'Every Landscape Holds a Deeper Story',
+          'stories.subtitle': 'Before you arrive, step into the road-trip lore of State Highway 8 and the spirit of Māori mythology. Click either feature to read in full.',
+          'stories.s1.tag': 'Road Journal · State Highway 8',
+          'stories.s1.title': 'The Story of State Highway 8: Shepherd Legends, Glacial Lakes & Gold-Rush Valleys',
+          'stories.s1.excerpt': 'Leaving the Canterbury Plains and crossing Burkes Pass, the landscape opens like a cinema frame—golden tussock basins, the folklore of Scottish shepherd James Mackenzie, milky-blue glacial lakes, and the dramatic sweep across Lindis Pass into Central Otago...',
+          'stories.s2.tag': 'Cultural Heritage · Te Ao Māori',
+          'stories.s2.title': 'Māori Mythology & Spirit of Nature: From Aoraki the Cloud Piercer to Kaitiakitanga',
+          'stories.s2.excerpt': 'In Te Ao Māori, the South Island is the ancient stone canoe Te Waka o Aoraki, with Mount Cook standing as the eldest son gazing over the land. Embracing Kaitiakitanga—guardianship rather than conquest—transforms how we experience Aotearoa...',
+          'stories.readTime': '3 min read',
+          'stories.readMore': 'Read Full Story',
+          'booking.badge': 'Google Calendar · Free 15-Min Google Meet Consultation',
+          'booking.title': 'Start Planning Your Bespoke New Zealand Journey',
+          'booking.subtitle': 'Pick a convenient time slot for a free 15-minute Google Meet video chat to talk through your South Island travel ideas.',
+          'booking.emptyTag': 'Trip Summary Card',
+          'booking.emptyTitle': 'Haven’t attached your custom route yet?',
+          'booking.emptyDesc': 'Select your dream destinations in the interactive route planner above and click “Ask Seekai to Optimize / Quote” to bring your full route right here for one-click pasting into the booking form.',
+          'booking.syncBtn': 'Import Current Map Route',
+          'booking.backMap': 'Back to Route Map',
+          'booking.filledTag': 'Your Custom Route Summary',
+          'booking.clearBtn': 'Clear',
+          'booking.copyRouteBtn': '📋 Copy Route (Paste into Booking Form)',
+          'booking.pasteHint': 'Paste directly into the booking notes field',
+          'booking.editMap': 'Edit on Map',
+          'booking.contactTitle': 'Or Reach Out Directly',
+          'booking.contactDesc': 'Can’t find a matching slot? Send me your travel dates and group size anytime—I reply within 24 hours (NZ time).',
+          'booking.wechatLabel': 'WeChat',
+          'booking.copyBtn': 'Copy',
+          'booking.gcalBarTitle': 'Google Calendar Appointment Schedule',
+          'booking.gcalBarSub': 'Google Meet link is sent automatically upon booking',
+          'booking.tzBadge': 'Auto-detects your local timezone',
+          'booking.mockTitle': '15-Min South Island Trip Chat',
+          'booking.mockItem1': 'Free 15-minute 1-on-1 video consultation',
+          'booking.mockItem2': 'Google Meet video call (automatic invite)',
+          'booking.mockItem3': 'NZDT / NZST converted to your timezone',
+          'booking.mockSelect': 'Select a Date & Time (Preview)',
+          'booking.mon': 'Mon',
+          'booking.tue': 'Tue',
+          'booking.wed': 'Wed',
+          'booking.thu': 'Thu',
+          'booking.fri': 'Fri',
+          'booking.phTitle': 'Google Calendar Appointment Schedule Preview',
+          'booking.phDesc': 'Paste your Google Calendar Appointment Schedule embed URL into the <code class="px-1.5 py-0.5 rounded bg-sand-200/80 text-forest-900 text-xs font-semibold">src</code> attribute in <code class="px-1 py-0.5 rounded bg-sand-200/80 text-forest-900 text-xs">index.html</code> to activate live booking here.',
+          'booking.phHint': 'Search for the comment <strong class="text-forest-900">“在此貼上你的 Google Calendar 預約時段 iframe 網址”</strong> to configure in seconds',
+          'booking.phFoot1': 'Google Calendar Appointment Schedule Embed Height: 650px',
+          'booking.phFoot2': 'Zero third-party fees · Native Google Meet integration',
+          'footer.tagline': 'South Island Local Private Tour Guide · Custom Chauffeur · Cultural Discovery',
+          'footer.routes': 'Routes',
+          'footer.map': 'Route Map',
+          'footer.book': 'Book Now',
+          'modal.ctaPrompt': 'Want to hear more hidden South Island stories in person on the road?',
+          'modal.ctaBtn': 'Book Free Consultation'
+        }
+      };
+
+      const SPOT_EN_META = {
+        picton: { region: 'North & East', highlight: 'Gateway to the Marlborough Sounds ferry & Sauvignon Blanc vineyards' },
+        abeltasman: { region: 'North & East', highlight: 'Golden coastal beaches, turquoise bays & sea kayaking paradise' },
+        kaikoura: { region: 'North & East', highlight: 'Year-round whale watching, fur seals & snow-capped coastal peaks' },
+        hanmer: { region: 'North & East', highlight: 'Alpine village famed for open-air natural thermal hot pools' },
+        christchurch: { region: 'North & East', highlight: 'The Garden City, Avon River punting & South Island international gateway' },
+        akaroa: { region: 'North & East', highlight: 'Historic French harbour village & rare Hector’s dolphin cruises' },
+        arthurspass: { region: 'West Coast', highlight: 'Dramatic trans-alpine mountain pass, waterfalls & native Kea parrots' },
+        punakaiki: { region: 'West Coast', highlight: '30-million-year-old Pancake Rocks & thundering coastal blowholes' },
+        hokitika: { region: 'West Coast', highlight: 'Pounamu (greenstone) capital, turquoise gorge & wild West Coast sunsets' },
+        franzjosef: { region: 'West Coast', highlight: 'Temperate rainforest meeting alpine ice—heli-hikes & Lake Matheson' },
+        tekapo: { region: 'Alpine Lakes', highlight: 'International Dark Sky Reserve stargazing & Church of the Good Shepherd' },
+        pukaki: { region: 'Alpine Lakes', highlight: 'Milky turquoise glacial waters & fresh alpine salmon tasting' },
+        mtcook: { region: 'Alpine Lakes', highlight: 'New Zealand’s highest peak, Hooker Valley Track & Tasman Glacier' },
+        twizel: { region: 'Alpine Lakes', highlight: 'SH8 high-country hub, private hot tubs & dramatic Clay Cliffs' },
+        wanaka: { region: 'Queenstown Lakes', highlight: 'Iconic #ThatWanakaTree, Roys Peak views & relaxed lakeside charm' },
+        cromwell: { region: 'Queenstown Lakes', highlight: 'Stone-fruit orchards, historic lakeside precinct & Pinot Noir cellars' },
+        arrowtown: { region: 'Queenstown Lakes', highlight: '19th-century Chinese gold-mining heritage & vibrant autumn foliage' },
+        queenstown: { region: 'Queenstown Lakes', highlight: 'Adventure capital on Lake Wakatipu & vintage TSS Earnslaw cruises' },
+        glenorchy: { region: 'Queenstown Lakes', highlight: 'Lord of the Rings filming backdrops & scenic lakeside Paradise road' },
+        teanau: { region: 'Fiordland & South', highlight: 'Subterranean glowworm caves & tranquil gateway to Fiordland' },
+        milford: { region: 'Fiordland & South', highlight: 'UNESCO World Heritage fiord, Mitre Peak & 17 scenic SH94 stops' },
+        catlins: { region: 'Fiordland & South', highlight: 'Nugget Point Lighthouse, native forest waterfalls & wild sea lions' },
+        dunedin: { region: 'Fiordland & South', highlight: 'Scottish Victorian heritage & Otago Peninsula royal albatross colony' },
+        oamaru: { region: 'Fiordland & South', highlight: 'Limestone Victorian precinct, little blue penguins & Moeraki Boulders' }
+      };
+
+      let currentLang = 'zh';
+      try {
+        const savedLang = localStorage.getItem('seekai_lang');
+        if (savedLang === 'en' || savedLang === 'zh') currentLang = savedLang;
+      } catch {}
+
+      function t(key) {
+        return (I18N[currentLang] && I18N[currentLang][key]) || I18N.zh[key] || key;
+      }
+
+      // 1. 頂部導覽列滾動狀態切換 + 雙語按鈕樣式同步
+      const navbar = document.getElementById('navbar');
+      const navBrandText = document.getElementById('nav-brand-text');
+      const navBrandSub = document.getElementById('nav-brand-sub');
+      const navLogoIcon = document.getElementById('nav-logo-icon');
+      const navLinks = document.querySelectorAll('.nav-link');
+      const navCta = document.getElementById('nav-cta');
+      const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+      const langSwitchDesktop = document.getElementById('lang-switch-desktop');
+      const langSwitchMobileBar = document.getElementById('lang-switch-mobile-bar');
+      const langButtons = document.querySelectorAll('[data-lang-btn]');
+
+      function updateLangToggleStyles() {
+        const scrolled = window.scrollY > 40;
+        [langSwitchDesktop, langSwitchMobileBar].forEach((wrap) => {
+          if (!wrap) return;
+          if (scrolled) {
+            wrap.classList.remove('border-white/30', 'bg-white/10');
+            wrap.classList.add('border-sand-300', 'bg-sand-100');
+          } else {
+            wrap.classList.add('border-white/30', 'bg-white/10');
+            wrap.classList.remove('border-sand-300', 'bg-sand-100');
+          }
+        });
+
+        langButtons.forEach((btn) => {
+          const isActive = btn.getAttribute('data-lang-btn') === currentLang;
+          btn.setAttribute('aria-pressed', String(isActive));
+          btn.classList.remove(
+            'bg-white', 'text-forest-900', 'shadow-sm',
+            'bg-forest-900', 'text-white',
+            'text-white/85', 'hover:text-white',
+            'text-ink-muted', 'hover:text-forest-900'
+          );
+          if (isActive) {
+            if (scrolled) {
+              btn.classList.add('bg-forest-900', 'text-white', 'shadow-sm');
+            } else {
+              btn.classList.add('bg-white', 'text-forest-900', 'shadow-sm');
+            }
+          } else {
+            if (scrolled) {
+              btn.classList.add('text-ink-muted', 'hover:text-forest-900');
+            } else {
+              btn.classList.add('text-white/85', 'hover:text-white');
+            }
+          }
+        });
+      }
+
+      function updateNavbar() {
+        const scrolled = window.scrollY > 40;
+        if (scrolled) {
+          navbar.classList.remove('navbar-transparent');
+          navbar.classList.add('navbar-scrolled');
+          navBrandText.classList.replace('text-white', 'text-forest-900');
+          navBrandSub.classList.replace('text-white/75', 'text-ink-muted');
+          navLogoIcon.classList.remove('border-white/40', 'bg-white/10');
+          navLogoIcon.classList.add('border-forest-900', 'bg-forest-900');
+          navLinks.forEach((link) => {
+            link.classList.remove('text-white/90', 'hover:text-glacier-100');
+            link.classList.add('text-ink', 'hover:text-glacier-700');
+          });
+          navCta.classList.remove('bg-white', 'text-forest-900', 'hover:bg-glacier-100');
+          navCta.classList.add('bg-forest-900', 'text-white', 'hover:bg-forest-800');
+          mobileMenuBtn.classList.remove('text-white', 'hover:bg-white/10');
+          mobileMenuBtn.classList.add('text-forest-900', 'hover:bg-sand-200/70');
+        } else {
+          navbar.classList.add('navbar-transparent');
+          navbar.classList.remove('navbar-scrolled');
+          navBrandText.classList.replace('text-forest-900', 'text-white');
+          navBrandSub.classList.replace('text-ink-muted', 'text-white/75');
+          navLogoIcon.classList.add('border-white/40', 'bg-white/10');
+          navLogoIcon.classList.remove('border-forest-900', 'bg-forest-900');
+          navLinks.forEach((link) => {
+            link.classList.add('text-white/90', 'hover:text-glacier-100');
+            link.classList.remove('text-ink', 'hover:text-glacier-700');
+          });
+          navCta.classList.add('bg-white', 'text-forest-900', 'hover:bg-glacier-100');
+          navCta.classList.remove('bg-forest-900', 'text-white', 'hover:bg-forest-800');
+          mobileMenuBtn.classList.add('text-white', 'hover:bg-white/10');
+          mobileMenuBtn.classList.remove('text-forest-900', 'hover:bg-sand-200/70');
+        }
+        updateLangToggleStyles();
+      }
+      window.addEventListener('scroll', updateNavbar, { passive: true });
+      updateNavbar();
+
+      let rerenderPlannerFn = null;
+      let refreshBookingCardLangFn = null;
+      let activeModalStoryKey = null;
+
+      function applyLanguage(lang, showFeedback = false) {
+        currentLang = lang === 'en' ? 'en' : 'zh';
+        try {
+          localStorage.setItem('seekai_lang', currentLang);
+        } catch {}
+
+        document.documentElement.lang = currentLang === 'en' ? 'en' : 'zh-Hant';
+        document.title = t('pageTitle');
+
+        document.querySelectorAll('[data-i18n]').forEach((el) => {
+          const key = el.getAttribute('data-i18n');
+          if (I18N[currentLang][key] !== undefined) {
+            el.textContent = I18N[currentLang][key];
+          }
+        });
+        document.querySelectorAll('[data-i18n-html]').forEach((el) => {
+          const key = el.getAttribute('data-i18n-html');
+          if (I18N[currentLang][key] !== undefined) {
+            el.innerHTML = I18N[currentLang][key];
+          }
+        });
+        document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+          const key = el.getAttribute('data-i18n-placeholder');
+          if (I18N[currentLang][key] !== undefined) {
+            el.setAttribute('placeholder', I18N[currentLang][key]);
+          }
+        });
+
+        updateLangToggleStyles();
+        if (typeof rerenderPlannerFn === 'function') rerenderPlannerFn(false);
+        if (typeof refreshBookingCardLangFn === 'function') refreshBookingCardLangFn();
+        if (activeModalStoryKey && typeof renderStoryModalContent === 'function') {
+          renderStoryModalContent(activeModalStoryKey);
+        }
+        if (showFeedback) {
+          showToast(currentLang === 'en' ? 'Switched to English' : '已切換為繁體中文');
+        }
+      }
+
+      langButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const targetLang = btn.getAttribute('data-lang-btn');
+          if (targetLang !== currentLang) {
+            applyLanguage(targetLang, true);
+          }
+        });
+      });
+
+      // 2. 手機版選單展開 / 收合
+      const mobileMenu = document.getElementById('mobile-menu');
+      const iconOpen = document.getElementById('menu-icon-open');
+      const iconClose = document.getElementById('menu-icon-close');
+      const mobileNavLinks = document.querySelectorAll('.mobile-nav-link');
+
+      function toggleMobileMenu(forceClose = false) {
+        const isHidden = mobileMenu.classList.contains('hidden');
+        const shouldOpen = forceClose ? false : isHidden;
+        mobileMenu.classList.toggle('hidden', !shouldOpen);
+        iconOpen.classList.toggle('hidden', shouldOpen);
+        iconClose.classList.toggle('hidden', !shouldOpen);
+        mobileMenuBtn.setAttribute('aria-expanded', String(shouldOpen));
+      }
+
+      mobileMenuBtn.addEventListener('click', () => toggleMobileMenu());
+      mobileNavLinks.forEach((link) => {
+        link.addEventListener('click', () => toggleMobileMenu(true));
+      });
+
+      // 3. 滾動淡入動效（IntersectionObserver）
+      const revealEls = document.querySelectorAll('.reveal');
+      if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+                observer.unobserve(entry.target);
+              }
+            });
+          },
+          { threshold: 0.12, rootMargin: '0px 0px -40px 0px' }
+        );
+        revealEls.forEach((el) => observer.observe(el));
+      } else {
+        revealEls.forEach((el) => el.classList.add('visible'));
+      }
+
+      // 4. 預約區專屬路線摘要卡片 + Toast 工具（供精選路線與三步自由行排程器共用）
+      const consultButtons = document.querySelectorAll('.consult-route-btn');
+      const selectedRouteBanner = document.getElementById('selected-route-banner');
+      const selectedRouteEmpty = document.getElementById('selected-route-empty');
+      const selectedRouteFilled = document.getElementById('selected-route-filled');
+      const selectedRouteName = document.getElementById('selected-route-name');
+      const selectedRouteMeta = document.getElementById('selected-route-meta');
+      const selectedRouteSegments = document.getElementById('selected-route-segments');
+      const copyRouteBtn = document.getElementById('copy-route-btn');
+      const clearRouteBtn = document.getElementById('clear-route-btn');
+      const syncCurrentPlannerBtn = document.getElementById('sync-current-planner-btn');
+      const bookingSection = document.getElementById('booking');
+      const copyToast = document.getElementById('copy-toast');
+      let toastTimer = null;
+      let currentRouteCopyPayload = '';
+
+      function showToast(message) {
+        copyToast.textContent = message;
+        copyToast.classList.remove('opacity-0', 'translate-y-3');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          copyToast.classList.add('opacity-0', 'translate-y-3');
+        }, 2600);
+      }
+
+      async function copyTextWithToast(text, successMsg) {
+        try {
+          await navigator.clipboard.writeText(text);
+          showToast(successMsg);
+        } catch {
+          const tempInput = document.createElement('textarea');
+          tempInput.value = text;
+          document.body.appendChild(tempInput);
+          tempInput.select();
+          try {
+            document.execCommand('copy');
+            showToast(successMsg);
+          } catch {
+            showToast('請手動選取並複製文字');
+          }
+          document.body.removeChild(tempInput);
+        }
+      }
+
+      let lastBookingSource = null; // { type: 'featured', key } | { type: 'planner' }
+
+      function showBookingRoute(routeText, metaText = '', segmentLines = [], shouldScroll = true, sourceInfo = null) {
+        if (sourceInfo) lastBookingSource = sourceInfo;
+        selectedRouteName.textContent = routeText;
+        const isEn = currentLang === 'en';
+        if (metaText) {
+          selectedRouteMeta.textContent = metaText;
+          selectedRouteMeta.classList.remove('hidden');
+          const detailBlock =
+            segmentLines.length > 0
+              ? `\n\n${isEn ? 'Segment Distances & Non-Stop Drive Times:' : '各段參考距離與純行車時間：'}\n${segmentLines.join('\n')}`
+              : '';
+          currentRouteCopyPayload = isEn
+            ? `[seekai.exploreNZ Custom South Island Itinerary]\nRoute: ${routeText}\nSummary: ${metaText}${detailBlock}`
+            : `【seekai.exploreNZ 專屬南島自由行路線諮詢】\n路線：${routeText}\n摘要：${metaText}${detailBlock}`;
+        } else {
+          selectedRouteMeta.textContent = '';
+          selectedRouteMeta.classList.add('hidden');
+          currentRouteCopyPayload = isEn
+            ? `[seekai.exploreNZ Route Inquiry]\nSelected Route: ${routeText}`
+            : `【seekai.exploreNZ 路線諮詢】\n感興趣路線：${routeText}`;
+        }
+
+        if (segmentLines.length > 0) {
+          selectedRouteSegments.innerHTML = segmentLines
+            .map((line) => `<li>${line}</li>`)
+            .join('');
+          selectedRouteSegments.classList.remove('hidden');
+        } else {
+          selectedRouteSegments.innerHTML = '';
+          selectedRouteSegments.classList.add('hidden');
+        }
+
+        selectedRouteEmpty.classList.add('hidden');
+        selectedRouteFilled.classList.remove('hidden');
+
+        // 細微發光提示，吸引目光注意到已帶入的專屬路線卡片
+        if (shouldScroll) {
+          selectedRouteBanner.classList.add('ring-2', 'ring-glacier-400', 'ring-offset-2', 'ring-offset-forest-900');
+          setTimeout(() => {
+            selectedRouteBanner.classList.remove('ring-2', 'ring-glacier-400', 'ring-offset-2', 'ring-offset-forest-900');
+          }, 1600);
+          bookingSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+
+      consultButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const routeKey = btn.getAttribute('data-route-key');
+          const routeLabel = routeKey ? t(`routes.${routeKey}.booking`) : btn.getAttribute('data-route');
+          showBookingRoute(routeLabel, '', [], true, routeKey ? { type: 'featured', key: routeKey } : null);
+        });
+      });
+
+      copyRouteBtn.addEventListener('click', () => {
+        if (currentRouteCopyPayload) {
+          copyTextWithToast(
+            currentRouteCopyPayload,
+            currentLang === 'en'
+              ? 'Route copied! Paste it into the Google Calendar booking notes.'
+              : '已複製專屬路線！請貼到右側 Google Calendar 預約表單備註欄'
+          );
+        }
+      });
+
+      clearRouteBtn.addEventListener('click', () => {
+        lastBookingSource = null;
+        selectedRouteFilled.classList.add('hidden');
+        selectedRouteEmpty.classList.remove('hidden');
+        selectedRouteName.textContent = '';
+        selectedRouteMeta.textContent = '';
+        selectedRouteSegments.innerHTML = '';
+        selectedRouteSegments.classList.add('hidden');
+        currentRouteCopyPayload = '';
+      });
+
+      // 4.5 互動式南島客製化路線規劃地圖（含經典主題路線、24 景點分區、官方參考距離與車程計算）
+      (function initRoutePlanner() {
+        if (typeof L === 'undefined') return;
+
+        // 24 個紐西蘭南島經典旅遊景點（完整保留 13 個核心景點，並擴充至南島全區旅遊地圖景點）
+        const SPOTS = [
+          {
+            id: 'picton',
+            order: 1,
+            region: 'north-east',
+            regionLabel: '北部與東岸',
+            core: false,
+            en: 'Picton & Marlborough',
+            zh: '皮克頓與馬爾堡峽灣',
+            highlight: '南島北端峽灣渡輪門戶與白蘇維濃酒莊產區',
+            lat: -41.2907,
+            lng: 174.0063
+          },
+          {
+            id: 'abeltasman',
+            order: 2,
+            region: 'north-east',
+            regionLabel: '北部與東岸',
+            core: false,
+            en: 'Abel Tasman National Park',
+            zh: '亞伯塔斯曼國家公園',
+            highlight: '金色沙灘海岸步道與碧海獨木舟秘境',
+            lat: -40.9143,
+            lng: 173.0054
+          },
+          {
+            id: 'kaikoura',
+            order: 3,
+            region: 'north-east',
+            regionLabel: '北部與東岸',
+            core: true,
+            en: 'Kaikōura',
+            zh: '凱庫拉',
+            highlight: '賞鯨與海豹生態、太平洋海岸雪山奇景',
+            lat: -42.4008,
+            lng: 173.6814
+          },
+          {
+            id: 'hanmer',
+            order: 4,
+            region: 'north-east',
+            regionLabel: '北部與東岸',
+            core: false,
+            en: 'Hanmer Springs',
+            zh: '漢默溫泉',
+            highlight: '高山森林環繞的露天天然硫磺溫泉小鎮',
+            lat: -42.5210,
+            lng: 172.8286
+          },
+          {
+            id: 'christchurch',
+            order: 5,
+            region: 'north-east',
+            regionLabel: '北部與東岸',
+            core: true,
+            en: 'Christchurch',
+            zh: '基督城',
+            highlight: '花園城市、雅芳河撐篙與南島國際門戶',
+            lat: -43.5321,
+            lng: 172.6362
+          },
+          {
+            id: 'akaroa',
+            order: 6,
+            region: 'north-east',
+            regionLabel: '北部與東岸',
+            core: false,
+            en: 'Akaroa',
+            zh: '阿卡羅阿',
+            highlight: '班克斯半島法式海灣小鎮與稀有赫氏海豚',
+            lat: -43.8037,
+            lng: 172.9682
+          },
+          {
+            id: 'arthurspass',
+            order: 7,
+            region: 'west-coast',
+            regionLabel: '西海岸冰川',
+            core: false,
+            en: "Arthur's Pass",
+            zh: '亞瑟隘口',
+            highlight: '橫越南阿爾卑斯山脈高山景觀公路與魔鬼酒杯瀑布',
+            lat: -42.9437,
+            lng: 171.5646
+          },
+          {
+            id: 'punakaiki',
+            order: 8,
+            region: 'west-coast',
+            regionLabel: '西海岸冰川',
+            core: false,
+            en: 'Punakaiki',
+            zh: '普納凱基千層岩',
+            highlight: '三千萬年海蝕薄餅岩與壯觀潮汐噴水孔',
+            lat: -42.1149,
+            lng: 171.3270
+          },
+          {
+            id: 'hokitika',
+            order: 9,
+            region: 'west-coast',
+            regionLabel: '西海岸冰川',
+            core: false,
+            en: 'Hokitika',
+            zh: '霍基蒂卡',
+            highlight: '毛利綠玉之都、蒂芬妮藍峽谷與西岸日落海灘',
+            lat: -42.7169,
+            lng: 170.9667
+          },
+          {
+            id: 'franzjosef',
+            order: 10,
+            region: 'west-coast',
+            regionLabel: '西海岸冰川',
+            core: false,
+            en: 'Franz Josef & Fox Glacier',
+            zh: '法蘭茲約瑟夫與福克斯冰川',
+            highlight: '溫帶雨林直通冰河的直升機冰川健行與馬松森湖倒影',
+            lat: -43.3886,
+            lng: 170.1819
+          },
+          {
+            id: 'tekapo',
+            order: 11,
+            region: 'central',
+            regionLabel: '中線冰川湖',
+            core: true,
+            en: 'Lake Tekapo',
+            zh: '蒂卡波湖',
+            highlight: '暗夜星空保護區與好牧羊人教堂',
+            lat: -44.0047,
+            lng: 170.4771
+          },
+          {
+            id: 'pukaki',
+            order: 12,
+            region: 'central',
+            regionLabel: '中線冰川湖',
+            core: true,
+            en: 'Lake Pukaki',
+            zh: '普卡基湖',
+            highlight: '冰川牛奶藍湖泊與高山鮭魚',
+            lat: -44.1667,
+            lng: 170.1833
+          },
+          {
+            id: 'mtcook',
+            order: 13,
+            region: 'central',
+            regionLabel: '中線冰川湖',
+            core: true,
+            en: 'Aoraki / Mount Cook',
+            zh: '庫克山',
+            highlight: '紐西蘭最高峰、胡克谷步道與塔斯曼冰川',
+            lat: -43.7347,
+            lng: 170.0964
+          },
+          {
+            id: 'twizel',
+            order: 14,
+            region: 'central',
+            regionLabel: '中線冰川湖',
+            core: true,
+            en: 'Twizel & Omarama',
+            zh: '特威澤爾與奧馬拉馬',
+            highlight: 'SH8 公路中繼、高山熱水浴與黏土懸崖',
+            lat: -44.3650,
+            lng: 170.0150
+          },
+          {
+            id: 'wanaka',
+            order: 15,
+            region: 'lakes',
+            regionLabel: '皇后鎮湖區',
+            core: true,
+            en: 'Wanaka',
+            zh: '瓦納卡',
+            highlight: '孤獨的樹、羅伊峰健行與湖畔慢活',
+            lat: -44.7032,
+            lng: 169.1321
+          },
+          {
+            id: 'cromwell',
+            order: 16,
+            region: 'lakes',
+            regionLabel: '皇后鎮湖區',
+            core: true,
+            en: 'Cromwell',
+            zh: '克倫威爾',
+            highlight: '紐西蘭水果之鄉、歷史舊城與黑皮諾酒莊',
+            lat: -45.0394,
+            lng: 169.2008
+          },
+          {
+            id: 'arrowtown',
+            order: 17,
+            region: 'lakes',
+            regionLabel: '皇后鎮湖區',
+            core: true,
+            en: 'Arrowtown',
+            zh: '箭鎮',
+            highlight: '百年華人淘金歷史聚落與秋日落葉秘境',
+            lat: -44.9389,
+            lng: 168.8358
+          },
+          {
+            id: 'queenstown',
+            order: 18,
+            region: 'lakes',
+            regionLabel: '皇后鎮湖區',
+            core: true,
+            en: 'Queenstown',
+            zh: '皇后鎮',
+            highlight: '世界冒險之都、瓦卡蒂普湖與百年蒸汽船',
+            lat: -45.0312,
+            lng: 168.6626
+          },
+          {
+            id: 'glenorchy',
+            order: 19,
+            region: 'lakes',
+            regionLabel: '皇后鎮湖區',
+            core: true,
+            en: 'Glenorchy',
+            zh: '格萊諾基',
+            highlight: '魔戒取景地與夢幻湖濱天堂之路',
+            lat: -44.8500,
+            lng: 168.3878
+          },
+          {
+            id: 'teanau',
+            order: 20,
+            region: 'south',
+            regionLabel: '峽灣與南部',
+            core: true,
+            en: 'Te Anau',
+            zh: '蒂阿瑙',
+            highlight: '藍光螢火蟲洞與世界遺產峽灣門戶',
+            lat: -45.4145,
+            lng: 167.7181
+          },
+          {
+            id: 'milford',
+            order: 21,
+            region: 'south',
+            regionLabel: '峽灣與南部',
+            core: true,
+            en: 'Milford Sound',
+            zh: '米佛峽灣',
+            highlight: '世界第八大奇景、教冠峰與鏡湖沿線 17 秘境',
+            lat: -44.6716,
+            lng: 167.9256
+          },
+          {
+            id: 'catlins',
+            order: 22,
+            region: 'south',
+            regionLabel: '峽灣與南部',
+            core: false,
+            en: 'The Catlins',
+            zh: '卡特林斯海岸',
+            highlight: '努蓋特角懸崖燈塔、原始瀑布與野生海獅海灘',
+            lat: -46.4481,
+            lng: 169.8169
+          },
+          {
+            id: 'dunedin',
+            order: 23,
+            region: 'south',
+            regionLabel: '峽灣與南部',
+            core: false,
+            en: 'Dunedin',
+            zh: '但尼丁',
+            highlight: '蘇格蘭愛丁堡風情古堡與奧塔哥半島皇家信天翁',
+            lat: -45.8788,
+            lng: 170.5028
+          },
+          {
+            id: 'oamaru',
+            order: 24,
+            region: 'south',
+            regionLabel: '峽灣與南部',
+            core: false,
+            en: 'Oamaru & Moeraki',
+            zh: '奧瑪魯與摩拉基大圓石',
+            highlight: '維多利亞蒸汽龐克白石鎮、藍眼企鵝歸巢與海灘巨圓石',
+            lat: -45.0976,
+            lng: 170.9704
+          }
+        ];
+
+        // 紐西蘭南島經典主題路線（參考 Tourism New Zealand 官方推薦軸線）
+        const THEME_PRESETS = {
+          'alpine-lakes': {
+            name: '高山湖泊經典線（Alpine Lakes）',
+            ids: ['christchurch', 'tekapo', 'pukaki', 'mtcook', 'wanaka', 'queenstown'],
+            dir: 'ns'
+          },
+          'west-coast': {
+            name: '西海岸冰川秘境線',
+            ids: ['christchurch', 'arthurspass', 'hokitika', 'franzjosef', 'wanaka', 'queenstown'],
+            dir: 'ns'
+          },
+          'southern-scenic': {
+            name: '峽灣與南方景觀線',
+            ids: ['queenstown', 'glenorchy', 'teanau', 'milford', 'catlins', 'dunedin', 'oamaru'],
+            dir: 'ns'
+          },
+          'alpine-pacific': {
+            name: '山海太平洋生態線',
+            ids: ['kaikoura', 'hanmer', 'christchurch', 'akaroa', 'tekapo'],
+            dir: 'ns'
+          }
+        };
+
+        // 參考紐西蘭旅遊局（newzealand.com）與 NZTA 實際公路距離（公里）與純行車時間（分鐘）對照表
+        const KNOWN_SEGMENTS = {
+          'picton|kaikoura': { km: 156, min: 135 },
+          'picton|abeltasman': { km: 165, min: 150 },
+          'abeltasman|kaikoura': { km: 295, min: 250 },
+          'kaikoura|hanmer': { km: 129, min: 115 },
+          'kaikoura|christchurch': { km: 181, min: 155 },
+          'hanmer|christchurch': { km: 135, min: 105 },
+          'christchurch|akaroa': { km: 81, min: 80 },
+          'akaroa|tekapo': { km: 280, min: 220 },
+          'christchurch|arthurspass': { km: 150, min: 125 },
+          'arthurspass|punakaiki': { km: 145, min: 120 },
+          'arthurspass|hokitika': { km: 102, min: 85 },
+          'punakaiki|hokitika': { km: 84, min: 70 },
+          'hokitika|franzjosef': { km: 134, min: 105 },
+          'franzjosef|wanaka': { km: 286, min: 225 },
+          'christchurch|tekapo': { km: 227, min: 180 },
+          'tekapo|pukaki': { km: 50, min: 40 },
+          'tekapo|mtcook': { km: 105, min: 75 },
+          'pukaki|mtcook': { km: 55, min: 45 },
+          'mtcook|twizel': { km: 65, min: 50 },
+          'mtcook|wanaka': { km: 206, min: 150 },
+          'pukaki|twizel': { km: 16, min: 15 },
+          'pukaki|wanaka': { km: 154, min: 115 },
+          'twizel|wanaka': { km: 143, min: 105 },
+          'tekapo|wanaka': { km: 200, min: 145 },
+          'wanaka|cromwell': { km: 53, min: 45 },
+          'wanaka|arrowtown': { km: 56, min: 55 },
+          'wanaka|queenstown': { km: 69, min: 65 },
+          'cromwell|arrowtown': { km: 47, min: 40 },
+          'cromwell|queenstown': { km: 60, min: 50 },
+          'arrowtown|queenstown': { km: 21, min: 22 },
+          'queenstown|glenorchy': { km: 46, min: 45 },
+          'glenorchy|teanau': { km: 216, min: 175 },
+          'queenstown|teanau': { km: 171, min: 130 },
+          'queenstown|milford': { km: 288, min: 245 },
+          'teanau|milford': { km: 119, min: 115 },
+          'milford|catlins': { km: 355, min: 295 },
+          'teanau|catlins': { km: 238, min: 190 },
+          'queenstown|dunedin': { km: 283, min: 220 },
+          'catlins|dunedin': { km: 112, min: 95 },
+          'dunedin|oamaru': { km: 113, min: 90 },
+          'oamaru|tekapo': { km: 185, min: 140 },
+          'oamaru|christchurch': { km: 248, min: 195 }
+        };
+
+        const DEFAULT_THEME_KEY = 'alpine-lakes';
+        let activeThemeKey = DEFAULT_THEME_KEY;
+        let selectedIds = new Set(THEME_PRESETS[DEFAULT_THEME_KEY].ids);
+        let direction = 'ns';
+        let activeRegion = 'core';
+        let segmentsExpanded = true;
+
+        // DOM 元素
+        const spotListEl = document.getElementById('planner-spot-list');
+        const summaryCountEl = document.getElementById('summary-count');
+        const summaryDistanceEl = document.getElementById('summary-distance');
+        const summaryDriveTimeEl = document.getElementById('summary-drive-time');
+        const summaryDaysEl = document.getElementById('summary-days');
+        const summaryRouteTextEl = document.getElementById('summary-route-text');
+        const segmentsWrapEl = document.getElementById('route-segments-wrap');
+        const segmentsListEl = document.getElementById('route-segments-list');
+        const toggleSegmentsBtn = document.getElementById('toggle-segments-btn');
+        const bookCustomRouteBtn = document.getElementById('book-custom-route-btn');
+        const resetBtn = document.getElementById('planner-reset-btn');
+        const allBtn = document.getElementById('planner-all-btn');
+        const clearBtn = document.getElementById('planner-clear-btn');
+        const fitRouteBtn = document.getElementById('fit-route-btn');
+        const dirButtons = document.querySelectorAll('.dir-btn');
+        const themeButtons = document.querySelectorAll('.theme-preset-btn');
+        const regionButtons = document.querySelectorAll('.region-tab-btn');
+
+        // 初始化 Leaflet 地圖（採用完全免費免 API Key 的自然地形圖與 OpenStreetMap 標準圖層，可自由切換）
+        const map = L.map('nz-route-map', {
+          center: [-44.22, 170.35],
+          zoom: 7,
+          scrollWheelZoom: false
+        });
+
+        const topoLayer = L.tileLayer(
+          'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+          {
+            attribution: 'Tiles &copy; Esri &mdash; OpenStreetMap contributors',
+            maxZoom: 18
+          }
+        );
+
+        const osmLayer = L.tileLayer(
+          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
+            maxZoom: 18
+          }
+        );
+
+        topoLayer.addTo(map);
+        L.control
+          .layers(
+            {
+              '南島自然地形圖': topoLayer,
+              'OpenStreetMap 街道圖': osmLayer
+            },
+            null,
+            { position: 'bottomright' }
+          )
+          .addTo(map);
+
+        const markersById = {};
+        let glowPolyline = null;
+        let mainPolyline = null;
+
+        // Haversine 球面直線距離計算（公里）
+        function haversineKm(a, b) {
+          const R = 6371;
+          const toRad = (deg) => (deg * Math.PI) / 180;
+          const dLat = toRad(b.lat - a.lat);
+          const dLng = toRad(b.lng - a.lng);
+          const lat1 = toRad(a.lat);
+          const lat2 = toRad(b.lat);
+          const h =
+            Math.sin(dLat / 2) ** 2 +
+            Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+          return 2 * R * Math.asin(Math.sqrt(h));
+        }
+
+        // 取得單段實際公路距離（km）與預估純行車時間（分鐘）
+        function getSegmentMetrics(from, to) {
+          const directKey = `${from.id}|${to.id}`;
+          const reverseKey = `${to.id}|${from.id}`;
+          if (KNOWN_SEGMENTS[directKey]) return KNOWN_SEGMENTS[directKey];
+          if (KNOWN_SEGMENTS[reverseKey]) return KNOWN_SEGMENTS[reverseKey];
+          const straight = haversineKm(from, to);
+          const km = Math.max(10, Math.round((straight * 1.38) / 5) * 5);
+          // 紐西蘭南島山區雙線道平均巡航車速約 72 km/h
+          const min = Math.max(15, Math.round(((km / 72) * 60) / 5) * 5);
+          return { km, min };
+        }
+
+        // 景點雙語欄位輔助函式
+        function getSpotName(spot) {
+          return currentLang === 'en' ? spot.en : spot.zh;
+        }
+        function getSpotDisplayTitle(spot) {
+          return currentLang === 'en' ? spot.en : `${spot.en} ${spot.zh}`;
+        }
+        function getSpotHighlight(spot) {
+          return currentLang === 'en' && SPOT_EN_META[spot.id] ? SPOT_EN_META[spot.id].highlight : spot.highlight;
+        }
+        function getSpotRegionLabel(spot) {
+          return currentLang === 'en' && SPOT_EN_META[spot.id] ? SPOT_EN_META[spot.id].region : spot.regionLabel;
+        }
+
+        // 格式化時間（中英文自動切換）
+        function formatMinutesShort(totalMin) {
+          if (totalMin <= 0) return '0m';
+          const h = Math.floor(totalMin / 60);
+          const m = totalMin % 60;
+          if (currentLang === 'en') {
+            if (h === 0) return `${m}m`;
+            if (m === 0) return `${h}h`;
+            return `${h}h ${String(m).padStart(2, '0')}m`;
+          }
+          if (h === 0) return `${m} 分`;
+          if (m === 0) return `${h} 小時`;
+          return `${h}h ${String(m).padStart(2, '0')}m`;
+        }
+
+        function formatMinutesFull(totalMin) {
+          if (totalMin <= 0) return currentLang === 'en' ? '0 min' : '0 分鐘';
+          const h = Math.floor(totalMin / 60);
+          const m = totalMin % 60;
+          if (currentLang === 'en') {
+            if (h === 0) return `${m} min`;
+            if (m === 0) return `${h} hr${h > 1 ? 's' : ''}`;
+            return `${h} hr ${m} min`;
+          }
+          if (h === 0) return `${m} 分鐘`;
+          if (m === 0) return `${h} 小時`;
+          return `${h} 小時 ${m} 分`;
+        }
+
+        // 依南島合理地理動線取得已選景點排序結果
+        function getOrderedSelectedSpots() {
+          return SPOTS.filter((s) => selectedIds.has(s.id)).sort((a, b) =>
+            direction === 'ns' ? a.order - b.order : b.order - a.order
+          );
+        }
+
+        // 計算所有路段明細、總距離與總行車時間
+        function computeRouteBreakdown(orderedSpots) {
+          const segments = [];
+          let totalKm = 0;
+          let totalMin = 0;
+          for (let i = 0; i < orderedSpots.length - 1; i++) {
+            const from = orderedSpots[i];
+            const to = orderedSpots[i + 1];
+            const m = getSegmentMetrics(from, to);
+            segments.push({ from, to, km: m.km, min: m.min });
+            totalKm += m.km;
+            totalMin += m.min;
+          }
+          // 若最後一站為單線進出的米佛峽灣，補上回程至蒂阿瑙參考段
+          if (orderedSpots.length >= 2 && orderedSpots[orderedSpots.length - 1].id === 'milford') {
+            const milfordSpot = orderedSpots[orderedSpots.length - 1];
+            const teanauSpot = SPOTS.find((s) => s.id === 'teanau');
+            segments.push({
+              from: milfordSpot,
+              to: teanauSpot,
+              km: 119,
+              min: 115,
+              isReturnNote: true
+            });
+            totalKm += 119;
+            totalMin += 115;
+          }
+          return { segments, totalKm, totalMin };
+        }
+
+        // 估算建議包車天數（兼顧總車程、純駕車時數與南島悠閒私房節奏）
+        function estimateDaysRange(count, km, totalMin) {
+          if (count === 0) return '—';
+          if (count === 1) return currentLang === 'en' ? '1 Day' : '1 天';
+          const byDistance = Math.max(1, Math.ceil(km / 200));
+          const byDriveHours = Math.max(1, Math.ceil(totalMin / 165));
+          const bySpots = Math.max(1, Math.ceil(count / 1.5));
+          const minDays = Math.max(2, Math.round((byDistance + byDriveHours) / 2));
+          const maxDays = Math.max(minDays + 1, bySpots);
+          return currentLang === 'en' ? `${minDays}–${maxDays} Days` : `${minDays}–${maxDays} 天`;
+        }
+
+        // 更新主題路線按鈕視覺高亮
+        function updateThemeButtons() {
+          themeButtons.forEach((btn) => {
+            const isActive = btn.getAttribute('data-theme') === activeThemeKey;
+            if (isActive) {
+              btn.classList.add('bg-forest-900', 'text-white', 'border-forest-900', 'shadow-md');
+              btn.classList.remove('bg-snow-pure', 'text-forest-900', 'border-sand-200', 'hover:border-glacier-400', 'shadow-soft');
+              btn.querySelectorAll('p.text-xs').forEach((p) => {
+                p.classList.remove('text-ink-muted');
+                p.classList.add('opacity-80');
+              });
+            } else {
+              btn.classList.remove('bg-forest-900', 'text-white', 'border-forest-900', 'shadow-md');
+              btn.classList.add('bg-snow-pure', 'text-forest-900', 'border-sand-200', 'hover:border-glacier-400', 'shadow-soft');
+              btn.querySelectorAll('p.text-xs').forEach((p) => {
+                p.classList.add('text-ink-muted');
+                p.classList.remove('opacity-80');
+              });
+            }
+          });
+        }
+
+        // 更新分區篩選標籤視覺狀態
+        function updateRegionButtons() {
+          regionButtons.forEach((btn) => {
+            const isActive = btn.getAttribute('data-region') === activeRegion;
+            if (isActive) {
+              btn.classList.add('bg-glacier-600', 'text-white');
+              btn.classList.remove('bg-white', 'text-ink-muted', 'hover:text-forest-900', 'border', 'border-sand-200');
+            } else {
+              btn.classList.remove('bg-glacier-600', 'text-white');
+              btn.classList.add('bg-white', 'text-ink-muted', 'hover:text-forest-900', 'border', 'border-sand-200');
+            }
+          });
+        }
+
+        // 建立地圖 Popup 內容（支援繁中／英文雙語）
+        function buildPopupHtml(spot, isSelected, seqNum) {
+          const isEn = currentLang === 'en';
+          const statusBadge = isSelected
+            ? `<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:#E5EFEA;color:#1A3A2F;font-size:11px;font-weight:600;">${
+                isEn ? `Stop ${seqNum} · Added to Route` : `第 ${seqNum} 站 · 已加入專屬自由行`
+              }</span>`
+            : `<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:#E6F1F5;color:#2E5D72;font-size:11px;font-weight:500;">${getSpotRegionLabel(spot)}</span>`;
+
+          const actionBtnStyle = isSelected
+            ? 'background:#F3EEE6;color:#242E2A;border:1px solid #D2C3AC;'
+            : 'background:#1A3A2F;color:#FFFFFF;border:1px solid #1A3A2F;';
+
+          const actionLabel = isSelected
+            ? isEn
+              ? 'Remove from Route'
+              : '從專屬路線中移出'
+            : isEn
+              ? '+ Add to Custom Route'
+              : '+ 加入我的專屬自由行';
+
+          return `
+            <div style="padding:14px 16px;font-family:'Noto Sans TC',sans-serif;">
+              <div style="margin-bottom:6px;">${statusBadge}</div>
+              <div style="font-family:'Noto Serif TC',serif;font-size:15px;font-weight:600;color:#1A3A2F;line-height:1.35;">
+                ${getSpotDisplayTitle(spot)}
+              </div>
+              <p style="margin:6px 0 12px;font-size:12.5px;color:#576560;line-height:1.6;">
+                ${getSpotHighlight(spot)}
+              </p>
+              <button
+                type="button"
+                data-popup-toggle="${spot.id}"
+                style="width:100%;padding:7px 10px;border-radius:10px;font-size:12px;font-weight:500;cursor:pointer;${actionBtnStyle}"
+              >
+                ${actionLabel}
+              </button>
+            </div>
+          `;
+        }
+
+        // 建立 24 個南島地圖標記
+        SPOTS.forEach((spot) => {
+          const marker = L.marker([spot.lat, spot.lng]).addTo(map);
+          marker.on('popupopen', () => {
+            const btn = document.querySelector(`[data-popup-toggle="${spot.id}"]`);
+            if (btn) {
+              btn.addEventListener('click', () => {
+                toggleSpot(spot.id);
+                marker.closePopup();
+              });
+            }
+          });
+          markersById[spot.id] = marker;
+        });
+
+        function toggleSpot(id) {
+          activeThemeKey = null;
+          updateThemeButtons();
+          if (selectedIds.has(id)) {
+            selectedIds.delete(id);
+          } else {
+            selectedIds.add(id);
+          }
+          renderPlanner(false);
+        }
+
+        function fitMapToRoute() {
+          const ordered = getOrderedSelectedSpots();
+          const targets = ordered.length > 0 ? ordered : SPOTS;
+          const bounds = L.latLngBounds(targets.map((s) => [s.lat, s.lng]));
+          map.fitBounds(bounds, { padding: [46, 46], maxZoom: 9 });
+        }
+
+        function renderPlanner(shouldFitBounds = false) {
+          const isEn = currentLang === 'en';
+          const ordered = getOrderedSelectedSpots();
+          const seqMap = {};
+          ordered.forEach((spot, idx) => {
+            seqMap[spot.id] = idx + 1;
+          });
+
+          // 1. 依目前選定的南島區域與搜尋關鍵字篩選左側清單
+          const searchInputEl = document.getElementById('planner-search-input');
+          const searchQuery = searchInputEl ? searchInputEl.value.trim().toLowerCase() : '';
+          const baseList = direction === 'ns' ? SPOTS : [...SPOTS].reverse();
+          const filteredList = baseList.filter((spot) => {
+            if (searchQuery) {
+              const enMeta = SPOT_EN_META[spot.id] || { highlight: '', region: '' };
+              const haystack = `${spot.en} ${spot.zh} ${spot.highlight} ${spot.regionLabel} ${enMeta.highlight} ${enMeta.region}`.toLowerCase();
+              return haystack.includes(searchQuery);
+            }
+            if (activeRegion === 'all') return true;
+            if (activeRegion === 'core') return spot.core || selectedIds.has(spot.id);
+            return spot.region === activeRegion;
+          });
+
+          if (filteredList.length === 0) {
+            spotListEl.innerHTML = `
+              <div class="py-8 text-center text-xs text-ink-muted">
+                ${
+                  isEn
+                    ? `No South Island destinations match “<span class="font-medium text-forest-900">${searchQuery}</span>”. Try another keyword.`
+                    : `找不到符合「<span class="font-medium text-forest-900">${searchQuery}</span>」的南島景點，請試試其他關鍵字。`
+                }
+              </div>
+            `;
+          } else {
+            spotListEl.innerHTML = filteredList
+              .map((spot) => {
+                const isSelected = selectedIds.has(spot.id);
+                const seq = seqMap[spot.id];
+                return `
+                  <div class="group flex items-center gap-3 p-2.5 sm:p-3 rounded-2xl border transition-all duration-200 cursor-pointer ${
+                    isSelected
+                      ? 'bg-forest-100/55 border-forest-700/35 shadow-sm'
+                      : 'bg-snow hover:bg-sand-50 border-sand-200/80'
+                  }" data-spot-row="${spot.id}">
+                    <button
+                      type="button"
+                      aria-pressed="${isSelected}"
+                      class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-all ${
+                        isSelected
+                          ? 'bg-forest-900 text-white shadow-sm'
+                          : 'bg-white border-2 border-sand-300 text-transparent group-hover:border-glacier-600'
+                      }"
+                    >
+                      ${isSelected ? seq : '✓'}
+                    </button>
+                    <div class="min-w-0 flex-1">
+                      <div class="flex items-center gap-1.5">
+                        <span class="text-sm font-semibold ${isSelected ? 'text-forest-900' : 'text-ink'} truncate">
+                          ${getSpotDisplayTitle(spot)}
+                        </span>
+                        ${
+                          !spot.core
+                            ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-sand-100 text-ink-muted shrink-0">${getSpotRegionLabel(spot)}</span>`
+                            : ''
+                        }
+                      </div>
+                      <p class="text-xs text-ink-muted truncate mt-0.5 leading-snug">${getSpotHighlight(spot)}</p>
+                    </div>
+                    <button
+                      type="button"
+                      data-focus-spot="${spot.id}"
+                      title="${isEn ? 'Locate on map' : '在地圖上查看此景點'}"
+                      aria-label="${isEn ? `Locate ${spot.en}` : `在地圖上定位 ${spot.zh}`}"
+                      class="p-1.5 rounded-lg text-ink-muted/70 hover:text-glacier-700 hover:bg-white transition-colors shrink-0"
+                    >
+                      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
+                      </svg>
+                    </button>
+                  </div>
+                `;
+              })
+              .join('');
+          }
+
+          // 綁定清單點擊與定位事件
+          spotListEl.querySelectorAll('[data-spot-row]').forEach((row) => {
+            row.addEventListener('click', (e) => {
+              const focusBtn = e.target.closest('[data-focus-spot]');
+              if (focusBtn) {
+                const spotId = focusBtn.getAttribute('data-focus-spot');
+                const spot = SPOTS.find((s) => s.id === spotId);
+                if (spot && markersById[spotId]) {
+                  map.flyTo([spot.lat, spot.lng], 8, { duration: 0.7 });
+                  markersById[spotId].openPopup();
+                }
+                return;
+              }
+              toggleSpot(row.getAttribute('data-spot-row'));
+            });
+          });
+
+          // 2. 更新所有地圖標記圖標與 Popup
+          SPOTS.forEach((spot) => {
+            const isSelected = selectedIds.has(spot.id);
+            const seq = seqMap[spot.id];
+            const marker = markersById[spot.id];
+            const icon = isSelected
+              ? L.divIcon({
+                  className: '',
+                  html: `<div class="nz-pin-selected">${seq}</div>`,
+                  iconSize: [30, 30],
+                  iconAnchor: [15, 15],
+                  popupAnchor: [0, -16]
+                })
+              : L.divIcon({
+                  className: '',
+                  html: `<div class="nz-pin-unselected"></div>`,
+                  iconSize: [18, 18],
+                  iconAnchor: [9, 9],
+                  popupAnchor: [0, -10]
+                });
+            marker.setIcon(icon);
+            marker.setZIndexOffset(isSelected ? 500 + (30 - seq) : 0);
+            marker.bindPopup(buildPopupHtml(spot, isSelected, seq), { maxWidth: 265 });
+          });
+
+          // 3. 繪製串聯軌跡線（雙層柔和光暈 + 精緻虛線）
+          if (glowPolyline) map.removeLayer(glowPolyline);
+          if (mainPolyline) map.removeLayer(mainPolyline);
+
+          if (ordered.length >= 2) {
+            const latlngs = ordered.map((s) => [s.lat, s.lng]);
+            glowPolyline = L.polyline(latlngs, {
+              color: '#7AAEC4',
+              weight: 7,
+              opacity: 0.35,
+              lineJoin: 'round',
+              lineCap: 'round'
+            }).addTo(map);
+
+            mainPolyline = L.polyline(latlngs, {
+              color: '#1A3A2F',
+              weight: 3.2,
+              opacity: 0.9,
+              dashArray: '8, 9',
+              lineJoin: 'round',
+              lineCap: 'round'
+            }).addTo(map);
+          }
+
+          // 4. 更新即時路線摘要與各段距離／時間表
+          const count = ordered.length;
+          const { segments, totalKm, totalMin } = computeRouteBreakdown(ordered);
+          const daysStr = estimateDaysRange(count, totalKm, totalMin);
+          const routeText =
+            count > 0
+              ? ordered.map((s) => getSpotName(s)).join(' ➔ ')
+              : isEn
+                ? 'Choose a classic itinerary above, or pick destinations from the list or map pins.'
+                : '請點選上方經典主題路線，或從景點清單與地圖標記加入您的專屬自由行。';
+
+          summaryCountEl.textContent = isEn ? `${count} ${count === 1 ? 'Stop' : 'Stops'}` : `${count} 處`;
+          summaryDistanceEl.textContent =
+            count >= 2
+              ? `${isEn ? '~' : '約 '}${totalKm} km`
+              : count === 1
+                ? isEn
+                  ? 'Single Hub'
+                  : '定點深度遊'
+                : '0 km';
+          summaryDriveTimeEl.textContent =
+            count >= 2 ? `${isEn ? '~' : '約 '}${formatMinutesShort(totalMin)}` : '—';
+          summaryDaysEl.textContent = daysStr;
+          summaryRouteTextEl.textContent = routeText;
+          bookCustomRouteBtn.disabled = count === 0;
+          toggleSegmentsBtn.textContent = segmentsExpanded
+            ? isEn
+              ? 'Hide Legs'
+              : '收合各段時間'
+            : isEn
+              ? 'Show Legs'
+              : '展開各段時間';
+
+          if (segments.length > 0) {
+            segmentsListEl.innerHTML = segments
+              .map(
+                (seg, idx) => `
+                  <li class="flex items-center justify-between gap-2 py-1 border-b border-sand-100 last:border-b-0">
+                    <span class="truncate text-ink">
+                      <span class="text-glacier-700 font-semibold">${
+                        seg.isReturnNote ? (isEn ? 'Return' : '回程') : `${idx + 1}.`
+                      }</span>
+                      ${getSpotName(seg.from)} ➔ ${getSpotName(seg.to)}${
+                        seg.isReturnNote ? (isEn ? ' (Fiordland return)' : '（峽灣折返）') : ''
+                      }
+                    </span>
+                    <span class="shrink-0 font-medium text-forest-800">
+                      ${seg.km} km · ${formatMinutesShort(seg.min)}
+                    </span>
+                  </li>
+                `
+              )
+              .join('');
+            toggleSegmentsBtn.classList.remove('hidden');
+            segmentsWrapEl.classList.toggle('hidden', !segmentsExpanded);
+          } else {
+            segmentsListEl.innerHTML = '';
+            toggleSegmentsBtn.classList.add('hidden');
+            segmentsWrapEl.classList.add('hidden');
+          }
+
+          if (shouldFitBounds) {
+            fitMapToRoute();
+          }
+        }
+
+        // 註冊語言切換重繪回呼
+        rerenderPlannerFn = renderPlanner;
+
+        // 綁定經典主題路線一鍵套用
+        themeButtons.forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const key = btn.getAttribute('data-theme');
+            const preset = THEME_PRESETS[key];
+            if (!preset) return;
+            activeThemeKey = key;
+            selectedIds = new Set(preset.ids);
+            direction = preset.dir;
+            updateThemeButtons();
+            updateDirectionButtons();
+            renderPlanner(true);
+            const themeIndex = { 'alpine-lakes': 't1', 'west-coast': 't2', 'southern-scenic': 't3', 'alpine-pacific': 't4' }[key];
+            const themeTitle = themeIndex ? t(`planner.${themeIndex}.title`) : preset.name;
+            showToast(currentLang === 'en' ? `Applied “${themeTitle}”` : `已套用「${themeTitle}」`);
+          });
+        });
+
+        // 綁定區域篩選標籤
+        regionButtons.forEach((btn) => {
+          btn.addEventListener('click', () => {
+            activeRegion = btn.getAttribute('data-region');
+            updateRegionButtons();
+            renderPlanner(false);
+          });
+        });
+
+        // 收合／展開各段距離與車程時間
+        toggleSegmentsBtn.addEventListener('click', () => {
+          segmentsExpanded = !segmentsExpanded;
+          segmentsWrapEl.classList.toggle('hidden', !segmentsExpanded);
+          toggleSegmentsBtn.textContent = segmentsExpanded
+            ? currentLang === 'en'
+              ? 'Hide Legs'
+              : '收合各段時間'
+            : currentLang === 'en'
+              ? 'Show Legs'
+              : '展開各段時間';
+        });
+
+        // 綁定工具列按鈕
+        resetBtn.addEventListener('click', () => {
+          activeThemeKey = DEFAULT_THEME_KEY;
+          selectedIds = new Set(THEME_PRESETS[DEFAULT_THEME_KEY].ids);
+          direction = 'ns';
+          activeRegion = 'core';
+          updateThemeButtons();
+          updateRegionButtons();
+          updateDirectionButtons();
+          renderPlanner(true);
+        });
+
+        allBtn.addEventListener('click', () => {
+          activeThemeKey = null;
+          updateThemeButtons();
+          const targetPool =
+            activeRegion === 'all'
+              ? SPOTS
+              : activeRegion === 'core'
+                ? SPOTS.filter((s) => s.core)
+                : SPOTS.filter((s) => s.region === activeRegion);
+          targetPool.forEach((s) => selectedIds.add(s.id));
+          renderPlanner(true);
+        });
+
+        clearBtn.addEventListener('click', () => {
+          activeThemeKey = null;
+          updateThemeButtons();
+          selectedIds.clear();
+          renderPlanner(false);
+        });
+
+        fitRouteBtn.addEventListener('click', fitMapToRoute);
+
+        function updateDirectionButtons() {
+          dirButtons.forEach((btn) => {
+            const active = btn.getAttribute('data-dir') === direction;
+            btn.classList.toggle('bg-forest-900', active);
+            btn.classList.toggle('text-white', active);
+            btn.classList.toggle('shadow-sm', active);
+            btn.classList.toggle('text-ink-muted', !active);
+          });
+        }
+
+        dirButtons.forEach((btn) => {
+          btn.addEventListener('click', () => {
+            direction = btn.getAttribute('data-dir');
+            updateDirectionButtons();
+            renderPlanner(false);
+          });
+        });
+
+        // 搜尋地點即時篩選事件
+        const searchInput = document.getElementById('planner-search-input');
+        const searchClearBtn = document.getElementById('planner-search-clear');
+        const shareRouteBtn = document.getElementById('share-route-btn');
+
+        if (searchInput && searchClearBtn) {
+          searchInput.addEventListener('input', () => {
+            searchClearBtn.classList.toggle('hidden', searchInput.value.trim() === '');
+            renderPlanner(false);
+          });
+          searchClearBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            searchClearBtn.classList.add('hidden');
+            renderPlanner(false);
+            searchInput.focus();
+          });
+        }
+
+        // 整理目前路線摘要資料（供預約帶入與保存分享共用，支援繁中／英文雙語）
+        function buildCurrentRoutePayload() {
+          const isEn = currentLang === 'en';
+          const ordered = getOrderedSelectedSpots();
+          if (ordered.length === 0) return null;
+          const count = ordered.length;
+          const { segments, totalKm, totalMin } = computeRouteBreakdown(ordered);
+          const daysStr = estimateDaysRange(count, totalKm, totalMin);
+          const routeText = ordered.map((s) => getSpotName(s)).join(' ➔ ');
+          const kmText =
+            count >= 2
+              ? isEn
+                ? `~${totalKm} km`
+                : `約 ${totalKm} km`
+              : isEn
+                ? 'Single-Hub Stay'
+                : '定點深度遊';
+          const timeText =
+            count >= 2
+              ? isEn
+                ? `~${formatMinutesFull(totalMin)} drive`
+                : `純車程約 ${formatMinutesFull(totalMin)}`
+              : '';
+          const metaText = [
+            isEn ? `${count} ${count === 1 ? 'Stop' : 'Stops'}` : `已選 ${count} 個景點`,
+            kmText,
+            timeText,
+            isEn ? `Est. ${daysStr}` : `建議 ${daysStr}`
+          ]
+            .filter(Boolean)
+            .join(' · ');
+          const segmentLines = segments.map(
+            (seg, idx) =>
+              `${seg.isReturnNote ? (isEn ? 'Return' : '回程') : `${idx + 1}.`} ${getSpotName(seg.from)} ➔ ${getSpotName(seg.to)}: ${seg.km} km (${isEn ? '~' : '約 '}${formatMinutesFull(seg.min)})`
+          );
+          return { ordered, routeText, metaText, segmentLines };
+        }
+
+        // 當語言切換時，若預約區已帶入路線摘要卡片，立即同步更新語言
+        refreshBookingCardLangFn = () => {
+          if (!lastBookingSource) return;
+          if (lastBookingSource.type === 'featured') {
+            showBookingRoute(t(`routes.${lastBookingSource.key}.booking`), '', [], false, lastBookingSource);
+          } else if (lastBookingSource.type === 'planner') {
+            const payload = buildCurrentRoutePayload();
+            if (payload) {
+              showBookingRoute(payload.routeText, payload.metaText, payload.segmentLines, false, lastBookingSource);
+            }
+          }
+        };
+
+        // 「請 Seekai 幫我優化／報價（預約諮詢）」無縫導流至 Google Calendar 預約區塊
+        bookCustomRouteBtn.addEventListener('click', () => {
+          const payload = buildCurrentRoutePayload();
+          if (!payload) return;
+          showBookingRoute(payload.routeText, payload.metaText, payload.segmentLines, true, { type: 'planner' });
+        });
+
+        // 預約區左側「帶入目前地圖排好的路線」快捷按鈕
+        if (syncCurrentPlannerBtn) {
+          syncCurrentPlannerBtn.addEventListener('click', () => {
+            const payload = buildCurrentRoutePayload();
+            if (!payload) {
+              showToast(currentLang === 'en' ? 'Please select at least 1 destination on the map first.' : '目前地圖尚未選擇景點，請先勾選景點');
+              return;
+            }
+            showBookingRoute(payload.routeText, payload.metaText, payload.segmentLines, false, { type: 'planner' });
+            showToast(currentLang === 'en' ? 'Imported your current map itinerary!' : '已帶入目前地圖排好的專屬路線！');
+          });
+        }
+
+        // 「保存並分享這份專屬行程連結」（寫入 localStorage + 產生分享連結與行程文字）
+        if (shareRouteBtn) {
+          shareRouteBtn.addEventListener('click', () => {
+            const payload = buildCurrentRoutePayload();
+            if (!payload) {
+              showToast(currentLang === 'en' ? 'Select at least 1 stop before saving & sharing.' : '請先勾選至少 1 個景點再保存分享');
+              return;
+            }
+            const idsParam = payload.ordered.map((s) => s.id).join(',');
+            try {
+              localStorage.setItem('seekai_custom_route', JSON.stringify({ ids: payload.ordered.map((s) => s.id), dir: direction }));
+            } catch {}
+            const shareUrl = `${window.location.origin}${window.location.pathname}?spots=${encodeURIComponent(idsParam)}&dir=${direction}#route-planner`;
+            const shareText =
+              currentLang === 'en'
+                ? `[My South Island Custom Itinerary · seekai.exploreNZ]\nRoute: ${payload.routeText}\nSummary: ${payload.metaText}\n\nView & customize on map:\n${shareUrl}`
+                : `【我的紐西蘭南島專屬自由行 · seekai.exploreNZ】\n路線：${payload.routeText}\n摘要：${payload.metaText}\n\n查看與調整地圖路線：\n${shareUrl}`;
+            copyTextWithToast(
+              shareText,
+              currentLang === 'en'
+                ? 'Itinerary saved & shareable link copied!'
+                : '已保存行程並複製專屬分享連結與路線摘要！'
+            );
+          });
+        }
+
+        // 檢查網址參數或瀏覽器已保存行程並自動還原
+        (function restoreSavedOrSharedRoute() {
+          const validIds = new Set(SPOTS.map((s) => s.id));
+          const params = new URLSearchParams(window.location.search);
+          const sharedSpots = params.get('spots');
+          const sharedDir = params.get('dir');
+          if (sharedSpots) {
+            const parsed = sharedSpots.split(',').filter((id) => validIds.has(id));
+            if (parsed.length > 0) {
+              selectedIds = new Set(parsed);
+              activeThemeKey = null;
+              if (sharedDir === 'sn' || sharedDir === 'ns') direction = sharedDir;
+              return;
+            }
+          }
+          try {
+            const raw = localStorage.getItem('seekai_custom_route');
+            if (raw) {
+              const saved = JSON.parse(raw);
+              if (Array.isArray(saved.ids)) {
+                const parsed = saved.ids.filter((id) => validIds.has(id));
+                if (parsed.length > 0) {
+                  selectedIds = new Set(parsed);
+                  activeThemeKey = null;
+                  if (saved.dir === 'sn' || saved.dir === 'ns') direction = saved.dir;
+                }
+              }
+            }
+          } catch {}
+        })();
+
+        // 首次渲染與確保地圖尺寸在滾動顯示後正確重算
+        updateThemeButtons();
+        updateRegionButtons();
+        updateDirectionButtons();
+        renderPlanner(true);
+        setTimeout(() => map.invalidateSize(), 400);
+        window.addEventListener('resize', () => map.invalidateSize());
+      })();
+
+      // 5. 文化與故事專欄完整內容（繁體中文 & English）+ 彈窗控制
+      const storyData = {
+        sh8: {
+          zh: {
+            tag: '公路紀行 · State Highway 8',
+            title: '8 號公路（SH8）的故事：從牧羊人傳說到冰川與金色隘口',
+            paragraphs: [
+              '在紐西蘭南島，如果只能挑選一條最能濃縮地貌劇烈變化的內陸公路，那非 8 號公路（State Highway 8）莫屬。它不只是一條從東岸通往中奧塔哥的柏油路，更是無數南島旅人愛上這片土地的起點。',
+              '當車子緩緩離開坎特伯雷平原、穿過費爾利（Fairlie）與充滿復古氣息的伯克斯隘口（Burkes Pass），眼前的風景會在幾分鐘內完全切換：茂密的農田退去，取而代之的是遼闊得幾乎沒有邊際的麥肯齊盆地（Mackenzie Basin）。這片高地以十九世紀的蘇格蘭牧羊人詹姆斯・麥肯齊命名——傳說他與忠心的牧羊犬 Friday 曾憑藉對高山小徑的驚人記憶，在此神出鬼沒。',
+              '繼續沿著 SH8 前行，您會遇見因「冰川岩粉（Glacial Flour）」懸浮水中而呈現不可思議土耳其藍的蒂卡波湖與普卡基湖。在晴朗的午後，這段路就像直接駛向雲端之上的庫克山。',
+              '離開冰川湖泊後，8 號公路翻越海拔近千公尺的林迪斯隘口（Lindis Pass）。春夏之際這裡覆滿柔軟的金色雪草（Tussock），冬季則化作純白雪嶺；再往南深入克倫威爾與奧塔哥峽谷，十九世紀淘金熱留下的石屋與如今飄香的櫻桃果園與黑皮諾葡萄園交織在一起。跟著在地導遊放慢速度，SH8 沿途的每一處無名停車點，都能成為您旅程中最難忘的風景。'
+            ]
+          },
+          en: {
+            tag: 'Road Journal · State Highway 8',
+            title: 'The Story of State Highway 8: Shepherd Legends, Glacial Lakes & Golden Passes',
+            paragraphs: [
+              'If one inland highway captures the full dramatic sweep of New Zealand’s South Island, it is State Highway 8. Far more than a ribbon of asphalt linking the east coast to Central Otago, SH8 is where countless travellers fall quietly in love with Aotearoa.',
+              'Leaving the green Canterbury Plains through Fairlie and vintage Burkes Pass, the scenery transforms within minutes into the vast, golden Mackenzie Basin. The high country takes its name from 19th-century Scottish shepherd James Mackenzie—who, alongside his loyal collie Friday, famously navigated secret alpine tracks across these sweeping tussock hills.',
+              'Continuing south along SH8, glacial-flour turquoise waters appear in Lake Tekapo and Lake Pukaki. On a crisp afternoon, the highway feels as though it drives straight toward the snow-crowned summit of Aoraki / Mount Cook.',
+              'Beyond the lakes, SH8 climbs nearly 1,000 metres over the sculptural Lindis Pass—blanketed in golden tussock through summer and dusted in alpine snow come winter—before descending into Cromwell’s historic gold-rush stone cottages, cherry orchards, and Pinot Noir vineyards. With a local private guide, every unmarked layby along SH8 becomes a memory worth pausing for.'
+            ]
+          }
+        },
+        maori: {
+          zh: {
+            tag: '文化哲思 · Te Ao Māori',
+            title: '毛利神話與自然精神：Aoraki 聖山與守護大地的智慧',
+            paragraphs: [
+              '毛利語稱紐西蘭為「Aotearoa」，意為「長白雲之鄉」。在毛利文化裡，山川、湖泊與森林並非無生命的景物，而是擁有生命力（Mauri）的祖先與家人。',
+              '根據南島納塔胡部落（Ngāi Tahu）代代相傳的創世神話，天父 Ranginui 的四位兒子乘著獨木舟從天界降臨海洋探索。當獨木舟觸礁傾覆並化為石頭時，船身便成為今天的紐西蘭南島——「Te Waka o Aoraki」（奧拉基的獨木舟）。四位兄弟爬上翻覆的船底，在凜冽的南風中凝結成南阿爾卑斯山脈，其中最高、最挺拔的哥哥 Aoraki，便是今日的庫克山（Aoraki / Mount Cook），意為「穿雲之峰」。',
+              '同樣深深影響現代紐西蘭生活的，還有兩個核心毛利價值觀：一是「Manaakitanga」，代表發自內心、毫無保留的款待與照顧；二是「Kaitiakitanga」，代表人類是自然環境的守護者，而非擁有者。',
+              '這也是 seekai.exploreNZ 帶團時始終堅持的信念：我們不只是帶您拍下壯麗的照片，更希望透過對土地的尊重、無痕山林的步伐，以及真誠溫暖的陪伴，讓您在離開紐西蘭時，帶走一份與自然重新連結的平靜。'
+            ]
+          },
+          en: {
+            tag: 'Cultural Heritage · Te Ao Māori',
+            title: 'Māori Mythology & Spirit of Nature: Aoraki the Cloud Piercer & Kaitiakitanga',
+            paragraphs: [
+              'In Te Reo Māori, New Zealand is known as Aotearoa—the Land of the Long White Cloud. Within the Māori worldview, mountains, rivers, and ancient beech forests are not mere scenery; they are living ancestors possessing Mauri (vital life force).',
+              'According to Ngāi Tahu tradition in the South Island, four sons of the Sky Father Ranginui descended from the heavens in a celestial canoe. When their waka struck a reef and turned to stone, the hull became the South Island—Te Waka o Aoraki. Climbing onto the upturned canoe, the brothers froze in the icy southern wind into the Southern Alps, with the eldest and tallest, Aoraki (Mount Cook), rising above the clouds as the Cloud Piercer.',
+              'Two timeless Māori principles continue to shape life across Aotearoa today: Manaakitanga—heartfelt hospitality and genuine care for every guest—and Kaitiakitanga—the responsibility to act as guardians of the land rather than its owners.',
+              'At seekai.exploreNZ, these values guide every mile we travel together: leaving no trace on alpine trails, sharing stories with respect, and helping you return home with a lasting sense of calm and connection to nature.'
+            ]
+          }
+        }
+      };
+
+      const modal = document.getElementById('story-modal');
+      const modalBackdrop = document.getElementById('modal-backdrop');
+      const modalPanel = document.getElementById('modal-panel');
+      const modalTag = document.getElementById('modal-tag');
+      const modalTitle = document.getElementById('modal-title');
+      const modalBody = document.getElementById('modal-body');
+      const closeModalBtn = document.getElementById('close-modal-btn');
+      const modalBookingLink = document.getElementById('modal-booking-link');
+      const openStoryBtns = document.querySelectorAll('.open-story-btn');
+
+      function renderStoryModalContent(key) {
+        const entry = storyData[key];
+        if (!entry) return;
+        const story = entry[currentLang] || entry.zh;
+        modalTag.textContent = story.tag;
+        modalTitle.textContent = story.title;
+        modalBody.innerHTML = story.paragraphs
+          .map((text) => `<p>${text}</p>`)
+          .join('');
+      }
+
+      function openStoryModal(key) {
+        if (!storyData[key]) return;
+        activeModalStoryKey = key;
+        renderStoryModalContent(key);
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+
+        requestAnimationFrame(() => {
+          modalBackdrop.classList.remove('opacity-0');
+          modalPanel.classList.remove('opacity-0', 'translate-y-4', 'scale-95');
+        });
+      }
+
+      function closeStoryModal() {
+        activeModalStoryKey = null;
+        modalBackdrop.classList.add('opacity-0');
+        modalPanel.classList.add('opacity-0', 'translate-y-4', 'scale-95');
+        setTimeout(() => {
+          modal.classList.add('hidden');
+          modal.classList.remove('flex');
+          document.body.style.overflow = '';
+        }, 240);
+      }
+
+      openStoryBtns.forEach((btn) => {
+        btn.addEventListener('click', () => openStoryModal(btn.getAttribute('data-story')));
+      });
+      closeModalBtn.addEventListener('click', closeStoryModal);
+      modalBackdrop.addEventListener('click', closeStoryModal);
+      modalBookingLink.addEventListener('click', closeStoryModal);
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+          closeStoryModal();
+        }
+      });
+
+      // 6. Google Calendar 預約時段 iframe 偵測：當 src 填入真實預約連結時自動啟用日曆，否則顯示美觀預覽佔位畫面
+      const gcalIframe = document.getElementById('gcal-booking-iframe');
+      const gcalPlaceholder = document.getElementById('gcal-placeholder-preview');
+      if (gcalIframe && gcalPlaceholder) {
+        const gcalSrc = (gcalIframe.getAttribute('src') || '').trim();
+        const isConfigured = gcalSrc.startsWith('https://') && !gcalSrc.includes('YOUR_GOOGLE_CALENDAR');
+        if (isConfigured) {
+          gcalIframe.classList.remove('hidden');
+          gcalPlaceholder.classList.add('hidden');
+        } else {
+          gcalIframe.classList.add('hidden');
+          gcalPlaceholder.classList.remove('hidden');
+        }
+      }
+
+      // 7. 一鍵複製 WeChat ID 互動提示
+      const copyButtons = document.querySelectorAll('.copy-btn');
+      copyButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const textToCopy = btn.getAttribute('data-copy');
+          copyTextWithToast(
+            textToCopy,
+            currentLang === 'en' ? `Copied WeChat ID: ${textToCopy}` : `已複製 WeChat ID：${textToCopy}`
+          );
+        });
+      });
+
+      // 初始化套用已儲存語言設定（預設繁體中文）
+      applyLanguage(currentLang, false);
+    })();
+  </script>
+</body>
+</html>
